@@ -138,43 +138,120 @@ COOLDOWN_STAGE_MAP = {
     "Closed Won": 0,
     "Closed Lost": 0,
 }
+
 MICRO_REQUIREMENTS_BY_STAGE = {
+    "Lead": {
+        "and":[
+            {
+                "min_total":{
+                    "actions":["research_account","send_email","make_call"],
+                    "count":1
+                }
+            },
+            {
+                "or":[
+                    {"research_account":1},
+                    {"sequence":[{"send_email":1},{"make_call":1}]},
+                    {"sequence":[{"make_call":1},{"send_email":1}]},
+                    {"chance":0.40, "req":{"send_email":1}}
+                ]
+            }
+        ]
+    },
+
+    # -------------------------
+    # PROSPECTING
+    # -------------------------
+
+    "Prospecting": {
+        "and":[
+            {
+                "min_total":{
+                    "actions":["send_email","make_call","research_account"],
+                    "count":2
+                }
+            },
+            {
+                "or":[
+                    {"sequence":[{"send_email":1},{"make_call":1}]},
+                    {"sequence":[{"research_account":1},{"send_email":1}]},
+                    {"chance":0.35, "req":{"send_email":2}}
+                ]
+            }
+        ]
+    },
+
+    # -------------------------
+    # QUALIFICATION
+    # -------------------------
+
+    "Qualification": {
+        "and":[
+            {
+                "min_total":{
+                    "actions":["send_email","make_call","research_account","hold_meeting"],
+                    "count":3
+                }
+            },
+            {
+                "or":[
+                    {"sequence":[{"send_email":2},{"make_call":1},{"hold_meeting":1}]},
+                    {"sequence":[{"research_account":1},{"hold_meeting":1}]},
+                    {"sequence":[{"make_call":2},{"send_email":1}]},
+                    {"chance":0.25, "req":{"hold_meeting":1}}
+                ]
+            }
+        ]
+    },
+
+    # -------------------------
+    # PROPOSAL
+    # -------------------------
 
     "Proposal": {
         "and":[
             {"min_total":{
                 "actions":["follow_up","hold_meeting","internal_prep","solution_design","stakeholder_alignment"],
-                "count":2  # reduced from 3
+                "count":2
             }},
             {
                 "or":[
                     {"sequence":[{"solution_design":1},{"stakeholder_alignment":1}]},
                     {"sequence":[{"hold_meeting":1},{"follow_up":1},{"solution_design":1}]},
-                    {"chance":0.2, "req":{"internal_prep":1}}  # occasional early internal work
+                    {"chance":0.2, "req":{"internal_prep":1}}
                 ]
             },
             {"send_proposal":1}
         ]
     },
 
+    # -------------------------
+    # NEGOTIATION
+    # -------------------------
+
     "Negotiation": {
         "and":[
             {"min_total":{
                 "actions":["research_account","internal_prep","follow_up","hold_meeting","solution_design","stakeholder_alignment"],
-                "count":3  # reduced from 4
+                "count":3
             }},
             {
                 "or":[
                     {"sequence":[{"solution_design":1},{"internal_prep":1},{"follow_up":1}]},
                     {"sequence":[{"hold_meeting":1},{"stakeholder_alignment":1}]},
                     {"sequence":[{"internal_prep":1},{"make_call":1},{"send_email":1}]},
-                    {"chance":0.25, "req":{"follow_up":1}}  # random small progression
+                    {"chance":0.25, "req":{"follow_up":1}}
                 ]
             },
             {"send_proposal":1}
         ]
     }
+
 }
+
+
+
+
 # --- PIPELINE STAGES ---
 PIPELINE_STAGES: List[str] = [
     'Lead',

@@ -143,6 +143,7 @@ def compute_lead_probability(entity, rep=None) -> float:
     
     prob *= theta["scale_factor_lead_conversion"]
     prob += np.random.normal(0, theta["noise_sigma_lead"])
+    print(prob)
     return np.clip(prob, 0.0, 1.0)
 
 # # -----------------------------

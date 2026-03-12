@@ -41,27 +41,8 @@ def can_attempt_advancement(entity):
         return True
 
     return requirements_satisfied(requirements, entity.micro_state)
-# def can_attempt_advancement(entity: Opportunity) -> bool:
-#     """Check if an Opportunity can advance to next stage."""
-    
 
 
-#     # print(entity.stage, get_scaled_micro_requirdements(entity), entity.micro_state.__dict__) 
-#     # Check micro requirements for the next stage 
-#     next_index = entity.stage_index + 1 
-#     next_stage = PIPELINE_STAGES[next_index] if next_index < len(PIPELINE_STAGES) else None 
-#     requirements = get_scaled_micro_requirements(entity) 
-#     print(entity.id, entity.stage)
-#     print(entity.micro_state)
-#     print("requirements:", requirements)
-#     print()
-#     for action, count in requirements.items():
-#         if getattr(entity.micro_state, action, 0) < count: 
-#             return False 
-#         # Also respect cooldown 
-#         if entity.micro_state.days_until_next_stage > 0: 
-#             return False 
-#         return True
 def can_attempt_close(entity: Opportunity) -> bool:
     """Only Negotiation-stage opportunities can close.""" 
     return entity.stage == "Negotiation" and not entity.is_closed 
@@ -121,12 +102,10 @@ def convert_lead(
     rep: 'SalesRep',
     accounts: List[Account],
     opportunities: List[Opportunity],
-    # logger: EventLogger()
 ) -> Optional[Opportunity]:
     if not entity.can_convert():
         return None
 
-    # Create Account (keep this SIMPLE — match Account signature exactly)
     new_account = Account(
         id=generate_id(),
         name=entity.account_name,

@@ -46,7 +46,7 @@ theta = {
     "sentiment_beta_lead": 0.1,
     "scale_factor_lead_conversion": 0.35,
     "noise_sigma_lead": 0.02,
-    "lead_min_engagement": 0,             # minimum sum of emails + meetings
+    "lead_min_engagement": 5,             # minimum sum of emails + meetings
 
     # -----------------------------
     # Close / Lost Probabilities

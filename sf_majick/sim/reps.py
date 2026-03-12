@@ -54,6 +54,7 @@ class SalesRep:
     # -----------------------------------------------------------------
     def perform_micro_action(self, entity, action_name: str) -> dict:
         """Executes a micro action on any entity."""
+        # print(action_name)
         telemetry = execute_micro_action(
             entity=entity,
             action_name=action_name,
