@@ -38,6 +38,7 @@ def can_attempt_advancement(entity):
     requirements = get_scaled_micro_requirements(entity, theta)
 
     if requirements is None:
+        # print(requirements)
         return True
 
     return requirements_satisfied(requirements, entity.micro_state)
@@ -45,7 +46,24 @@ def can_attempt_advancement(entity):
 
 def can_attempt_close(entity: Opportunity) -> bool:
     """Only Negotiation-stage opportunities can close.""" 
+    
+    # print(entity.micro_state)
     return entity.stage == "Negotiation" and not entity.is_closed 
+
+
+
+def can_convert_lead(entity: Lead) -> bool:
+    if (
+        entity.micro_state.send_email >= 1 and
+        entity.micro_state.hold_meeting >= 1 and
+        entity.micro_state.make_call >= 1 and
+        entity.micro_state.internal_prep >= 1
+    ):
+        return True
+    else:
+        return False
+
+
 
 
 # ---------------------------------------------------------------------
@@ -133,6 +151,10 @@ def _close_lost_effect(op, rep=None, day=None, accounts = None, opportunities = 
     old_stage = op.stage
     op.mark_lost()  # call the new setter method
 
+    
+    
+    
+
 
 # ---------------------------------------------------------------------
 # Macro Registry
@@ -152,15 +174,7 @@ MACRO_ACTIONS = [
     ),
 MacroAction(
     name='Lead Conversion',
-    condition=lambda e: (
-        isinstance(e, Lead)
-        and not e.is_closed
-        and getattr(e, "micro_state", {}).get('send_email', 0) >= 3
-        and getattr(e, "micro_state", {}).get('hold_meeting', 0) >= 3
-        and getattr(e, "micro_state", {}).get('make_call', 0) >= 2
-        and getattr(e, "micro_state", {}).get('internal_prep', 0) >= 1
-        # and getattr(e, "micro_state", {}).get('hold_meeting', 0) >= 3
-    ),
+    condition=can_convert_lead,
     probability=compute_lead_probability,
     effect=convert_lead
 ),
@@ -230,75 +244,79 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
     # 2️⃣ Lead Conversion
     # -----------------------------
     if isinstance(entity, Lead) and not getattr(entity, "is_closed", False):
-        convert_prob = compute_lead_probability(entity) + 0.3  # optional boost
-        if random.random() < convert_prob:
-            result = convert_lead(entity, rep, accounts, opportunities)
-            advanced = True
-        else:
-            entity.mark_lost()
-            result = None
-            advanced = False
+        if can_convert_lead(entity):
+            convert_prob = compute_lead_probability(entity) + 0.1 # optional boost
+            if random.random() < convert_prob:
+                result = convert_lead(entity, rep, accounts, opportunities)
+                advanced = True
+            else:
+                entity.mark_lost()
+                result = None
+                advanced = False
 
-        macros_fired.append({
-            'advanced': advanced,
-            'old_stage': old_stage,
-            'new_stage': getattr(entity, "stage", old_stage),
-            'macro_name': 'Lead Conversion',
-            'probability': convert_prob,
-            'result': {
-                "account": result[0] if result else None,
-                "opportunity": result[1] if result else None
-            },
-            'momentum': derived_momentum(entity),
-            'friction': derived_friction(entity),
-            'momentum_delta': derived_momentum(entity) - old_momentum,
-            'friction_delta': derived_friction(entity) - old_friction
-        })
-        old_stage = getattr(entity, "stage", old_stage)
+            macros_fired.append({
+                'advanced': advanced,
+                'old_stage': old_stage,
+                'new_stage': getattr(entity, "stage", old_stage),
+                'macro_name': 'Lead Conversion',
+                'probability': convert_prob,
+                'result': {
+                    "account": result[0] if result else None,
+                    "opportunity": result[1] if result else None
+                },
+                'momentum': derived_momentum(entity),
+                'friction': derived_friction(entity),
+                'momentum_delta': derived_momentum(entity) - old_momentum,
+                'friction_delta': derived_friction(entity) - old_friction
+            })
+            old_stage = getattr(entity, "stage", old_stage)
 
     # -----------------------------
     # 3️⃣ Close Opportunity
     # -----------------------------
     if isinstance(entity, Opportunity) and getattr(entity, "stage", None) == "Negotiation":
-        close_prob = compute_close_probability(entity)
-        if random.random() < close_prob:
-            result = attempt_close(entity, rep, accounts, opportunities)
-            advanced = getattr(entity, "stage", old_stage) != old_stage
-            macros_fired.append({
-                'advanced': advanced,
-                'old_stage': old_stage,
-                'new_stage': getattr(entity, "stage", old_stage),
-                'macro_name': 'Close Opportunity',
-                'probability': close_prob,
-                'result': result,
-                'momentum': derived_momentum(entity),
-                'friction': derived_friction(entity),
-                'momentum_delta': derived_momentum(entity) - old_momentum,
-                'friction_delta': derived_friction(entity) - old_friction
-            })
-            old_stage = getattr(entity, "stage", old_stage)
+        if can_attempt_close(entity):
+            close_prob = compute_close_probability(entity)
+            if random.random() < close_prob:
+                result = attempt_close(entity, rep, accounts, opportunities)
+                advanced = getattr(entity, "stage", old_stage) != old_stage
+                macros_fired.append({
+                    'advanced': advanced,
+                    'old_stage': old_stage,
+                    'new_stage': getattr(entity, "stage", old_stage),
+                    'macro_name': 'Close Opportunity',
+                    'probability': close_prob,
+                    'result': result,
+                    'momentum': derived_momentum(entity),
+                    'friction': derived_friction(entity),
+                    'momentum_delta': derived_momentum(entity) - old_momentum,
+                    'friction_delta': derived_friction(entity) - old_friction
+                })
+                old_stage = getattr(entity, "stage", old_stage)
 
     # -----------------------------
     # 4️⃣ Stage Advancement
     # -----------------------------
     if isinstance(entity, Opportunity):
-        advance_prob = compute_stage_progress_probability(entity)
-        if random.random() < advance_prob:
-            result = advance_stage(entity, rep, accounts, opportunities)
-            advanced = getattr(entity, "stage", old_stage) != old_stage
-            macros_fired.append({
-                'advanced': advanced,
-                'old_stage': old_stage,
-                'new_stage': getattr(entity, "stage", old_stage),
-                'macro_name': 'Advance Stage',
-                'probability': advance_prob,
-                'result': result,
-                'momentum': derived_momentum(entity),
-                'friction': derived_friction(entity),
-                'momentum_delta': derived_momentum(entity) - old_momentum,
-                'friction_delta': derived_friction(entity) - old_friction
-            })
-            old_stage = getattr(entity, "stage", old_stage)
+        if can_attempt_advancement(entity):
+
+            advance_prob = compute_stage_progress_probability(entity)
+            if random.random() < advance_prob:
+                result = advance_stage(entity, rep, accounts, opportunities)
+                advanced = getattr(entity, "stage", old_stage) != old_stage
+                macros_fired.append({
+                    'advanced': advanced,
+                    'old_stage': old_stage,
+                    'new_stage': getattr(entity, "stage", old_stage),
+                    'macro_name': 'Advance Stage',
+                    'probability': advance_prob,
+                    'result': result,
+                    'momentum': derived_momentum(entity),
+                    'friction': derived_friction(entity),
+                    'momentum_delta': derived_momentum(entity) - old_momentum,
+                    'friction_delta': derived_friction(entity) - old_friction
+                })
+                old_stage = getattr(entity, "stage", old_stage)
 
     return macros_fired
 
@@ -471,7 +489,7 @@ def requirements_satisfied(req, micro_state) -> bool:
 
 def apply_cooldown(entity: Opportunity):
     """Set cooldown days based on the entity's current stage."""
-    entity.micro_state.days_until_next_stage = COOLDOWN_STAGE_MAP.get(entity.stage, 2)
+    entity.days_until_next_stage = COOLDOWN_STAGE_MAP.get(entity.stage, 2)
 
 
     

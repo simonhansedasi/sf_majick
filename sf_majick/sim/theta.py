@@ -20,9 +20,9 @@ theta = {
     # -----------------------------
     "base_prob_opportunity": 0.15,
 
-    "revenue_base": 50_000,
-    "revenue_exponent": 0.75,             # for compute_opportunity_probability
-    "revenue_exponent_macro": 0.15,       # for prob_advance
+    "revenue_base": 10_000_000,
+    "revenue_exponent": 0.15,             # for compute_opportunity_probability
+    "revenue_exponent_macro": 0.05,       # for prob_advance
     "momentum_beta_opportunity": 0.75,
     "friction_beta_opportunity": 0.5,
     "personality_skepticism_beta": -0.15,
@@ -35,18 +35,18 @@ theta = {
     # Lead Probabilities
     # -----------------------------
     "base_prob_lead_conversion": 0.25,
-    "micro_weight_email": 0.05,
-    "micro_weight_meeting": 0.10,
-    "micro_weight_followup": 0.05,
+    "micro_weight_email": 0.2,
+    "micro_weight_meeting": 0.30,
+    "micro_weight_followup": 0.5,
     "momentum_beta_lead": 0.6,
-    "friction_beta_lead": 0.6,
+    "friction_beta_lead": 0.16,
     "personality_skepticism_beta_lead": -0.1,
     "personality_urgency_beta_lead": 0.15,
     "personality_price_beta_lead": -0.05,
     "sentiment_beta_lead": 0.1,
     "scale_factor_lead_conversion": 0.35,
     "noise_sigma_lead": 0.02,
-    "lead_min_engagement": 5,             # minimum sum of emails + meetings
+    "lead_min_engagement": 2,             # minimum sum of emails + meetings
 
     # -----------------------------
     # Close / Lost Probabilities

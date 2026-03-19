@@ -141,9 +141,26 @@ def compute_lead_probability(entity, rep=None) -> float:
         + sentiment_factor
     )
     
+    
+#     print(
+    
+#         f'base: {base_prob}\n'
+#         f'micro score: {micro_score}\n'
+#         f'momentum: {theta["momentum_beta_lead"] * momentum}\n'
+#         f'friction: {theta["friction_beta_lead"] * friction}\n'
+#         f'difficulty: {difficulty_scaled}\n'
+#         f'personality factor: {personality_factor}\n'
+#         f'sentiment factor: {sentiment_factor}\n'
+    
+    
+    
+#     )
+    
+    
+    
     prob *= theta["scale_factor_lead_conversion"]
     prob += np.random.normal(0, theta["noise_sigma_lead"])
-    print(prob)
+    # print(prob)
     return np.clip(prob, 0.0, 1.0)
 
 # # -----------------------------

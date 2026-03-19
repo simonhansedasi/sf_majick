@@ -60,7 +60,7 @@ def SalesforceLogin():
     SF_REFRESH_TOKEN = os.environ["SF_REFRESH_TOKEN"]
     SF_INSTANCE_URL = os.environ["SF_INSTANCE_URL"]
 
-
+    print(SF_CLIENT_ID,SF_CLIENT_SECRET,SF_REFRESH_TOKEN,SF_INSTANCE_URL)
 
     # use SalesforceAuth class to refresh access tokens automatically
     sf = SalesforceAuth()

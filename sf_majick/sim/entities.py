@@ -653,41 +653,6 @@ class Opportunity(SimEntity):
         self.stage_advanced_today = False
         
         
-        
-        
-#     # -----------------------------------------------------------------
-#     # Stage / Macro Query Methods
-#     # -----------------------------------------------------------------
-#     def can_advance_stage(self) -> bool:
-#         """
-#         Check if this opportunity can advance to the next stage.
-#         Considers:
-#             - Stage limits (Closed Won/Lost)
-#             - Micro requirements for the next stage
-#             - Cooldown
-#         """
-#         if not self.can_advance or self.stage in ("Closed Won", "Closed Lost"):
-#             return False
-
-#         # Determine next stage
-#         next_index = self.stage_index + 1
-#         if next_index >= len(PIPELINE_STAGES):
-#             return False  # Already at final stage
-#         next_stage = PIPELINE_STAGES[next_index]
-
-#         # Fetch scaled micro requirements for this entity's current stage
-#         requirements = get_scaled_micro_requirements(self)
-
-#         # Check if all micro actions meet required counts
-#         for action, required_count in requirements.items():
-#             if getattr(self.micro_state, action, 0) < required_count:
-#                 return False
-
-#         # Respect cooldowns
-#         if getattr(self.micro_state, "days_until_next_stage", 0) > 0:
-#             return False
-
-#         return True
 
     def can_close(self) -> bool:
         """
@@ -735,7 +700,7 @@ class Account:
     opportunities: List[str] = field(default_factory=list)  
     personality: Optional[AccountPersonality] = None
     days_since_last_opportunity: int = 0
-    opportunity_cooldown: int = 0
+    opportunity_cooldown: int = 3
     
     
     # -----------------------------
