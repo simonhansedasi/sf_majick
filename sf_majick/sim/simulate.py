@@ -56,49 +56,64 @@ def run_simulation(
             new_stage=opp.stage,
             probability=None,
         )
+    def is_weekend(day: int) -> bool:
+        """Day 1 = Monday. Days 6 and 7 of each 7-day cycle are weekend."""
+        return day % 7 in (6, 0)  # 6 = Saturday, 0 = Sunday
+
     for day in tqdm(range(1, days + 1)):
+        weekend = is_weekend(day)
+
         # -----------------------------
         # Daily Reset Phase
         # -----------------------------
         # print(day)
         decrement_cooldowns(opportunities)
         for rep in reps:
+            # On weekends stress decays faster (genuine rest) but attention
+            # is not used, so we still call reset_day() for the side effects
+            # and then manually boost stress recovery.
             rep.reset_day()
-        for entity in leads + opportunities:
+            if weekend:
+                rep.stress = max(0.0, rep.stress * (1.0 - rep.personality.resilience))
+                # consecutive_no_close_days does not increment on weekends —
+                # reps shouldn't be penalised for not closing on a Saturday
+                rep.consecutive_no_close_days = max(0, rep.consecutive_no_close_days - 1)
 
+        for entity in leads + opportunities:
             entity.reset_daily_flags()
         # -----------------------------
-        # Daily Opportunity Spawn
+        # Daily Opportunity Spawn  (weekdays only)
         # -----------------------------
-        for account in accounts:
-            account.days_since_last_opportunity += 1
-            if random.random() < account.effective_buying_propensity():
-                if (
-                    account.days_since_last_opportunity > account.opportunity_cooldown
-                    and random.random() < account.buying_propensity
-                ):
-                    new_op = account.create_opportunity()
-                    opportunities.append(new_op)
+        if not weekend:
+            for account in accounts:
+                account.days_since_last_opportunity += 1
+                if random.random() < account.effective_buying_propensity():
+                    if (
+                        account.days_since_last_opportunity > account.opportunity_cooldown
+                        and random.random() < account.buying_propensity
+                    ):
+                        new_op = account.create_opportunity()
+                        opportunities.append(new_op)
 
-                    account.days_since_last_opportunity = 0
-                    account.opportunity_cooldown = random.randint(30, 45)
-                    
-                    logger.log_macro(
-                        day=day,
-                        rep_id=account.rep_id,
-                        entity_id=new_op.id,
-                        macro_name="Random Buy Opportunity",
-                        advanced=True,
-                        old_stage=None,
-                        new_stage='Prospecting',
-                        probability=None,
-                    )
-                    
+                        account.days_since_last_opportunity = 0
+                        account.opportunity_cooldown = random.randint(30, 45)
+                        
+                        logger.log_macro(
+                            day=day,
+                            rep_id=account.rep_id,
+                            entity_id=new_op.id,
+                            macro_name="Random Buy Opportunity",
+                            advanced=True,
+                            old_stage=None,
+                            new_stage='Prospecting',
+                            probability=None,
+                        )
+                        
         # -----------------------------
-        # Weekly Lead Generation
+        # Monthly Lead Generation  (weekdays only)
         # -----------------------------
-        if day % 30 == 1:
-            new_leads = generate_random_leads(n=random.randint(1,4))
+        if not weekend and day % 30 == 1:
+            new_leads = generate_random_leads(n=random.randint(3,5))
             leads.extend(new_leads)
             for lead in new_leads:
                 logger.log_macro(
@@ -113,172 +128,164 @@ def run_simulation(
                 )
 
         # -----------------------------
-        # Assign unclaimed entities to reps
+        # Assign unclaimed entities to reps  (weekdays only)
         # -----------------------------
-        for entity in leads + opportunities:
-            if entity.is_closed or getattr(entity, 'rep_id', None) is not None:
-                continue
+        if not weekend:
+            for entity in leads + opportunities:
+                if entity.is_closed or getattr(entity, 'rep_id', None) is not None:
+                    continue
 
-            # Compute strategy utilities for all reps
-            utilities = [strategy_weighted_utility(entity, r.strategy) for r in reps]
-            total = sum(utilities)
-            chosen_rep = random.choice(reps) if total == 0 else random.choices(
-                reps, weights=[u / total for u in utilities], k=1
-            )[0]
+                # Compute strategy utilities for all reps
+                utilities = [strategy_weighted_utility(entity, r.strategy) for r in reps]
+                total = sum(utilities)
+                chosen_rep = random.choice(reps) if total == 0 else random.choices(
+                    reps, weights=[u / total for u in utilities], k=1
+                )[0]
 
-            entity.rep_id = chosen_rep.id
+                entity.rep_id = chosen_rep.id
                                     
         # -----------------------------
-        # Each rep works their entities
+        # Each rep works their entities  (weekdays only)
         # -----------------------------
         
         for rep in reps:
-            # print()
-            # print(rep.id)
-            rep.reset_day()
             owned_entities = [e for e in opportunities + leads if e.rep_id == rep.id and not e.is_closed]
-                
-                
-            while rep.attention_remaining > 20:
-                # Filter by allowed actions via strategy
-                targets_with_actions = choose_targets_with_strategy(
-                    entities=owned_entities,
-                    rep_id=rep.id,
-                    strategy=rep.strategy
-                )
-                actionable_entities = [e for e, allowed in targets_with_actions if allowed]
 
-                if not actionable_entities:
-                    # Option 1: spawn leads
-                    new_leads = generate_random_leads(n=random.randint(1, 2))
-                    leads.extend(new_leads)
-                    owned_entities.extend(new_leads)
-                    for lead in new_leads:
-                        logger.log_macro(
-                            day=day,
-                            rep_id=rep.id,
-                            entity_id=lead.id,
-                            macro_name="New Lead",
-                            advanced=True,
-                            old_stage=None,
-                            new_stage=None,
-                            probability=None,
-                        )
-                    continue
-
+            if not weekend:
+                # print()
+                # print(rep.id)
+                rep.reset_day()
                 
-                chosen_entity = pick_entity_for_rep(rep, actionable_entities)
                 
-                if chosen_entity is None:
-                    new_leads = generate_random_leads(n=random.randint(1,2))
-                    leads.extend(new_leads)
-                    for lead in new_leads:
-                        actionable_entities.append(lead)
-                        logger.log_macro(
-                            day=day,
-                            rep_id=rep.id,
-                            entity_id=lead.id,
-                            macro_name="New Lead",
-                            advanced=True,
-                            old_stage=None,
-                            new_stage=None,
-                            probability=None,
-                        )
-                    # print('leads spawned')
-
-                    # Regenerate targets_with_actions using the full, updated list
+            if not weekend:
+                while rep.attention_remaining > 20:
+                    # Filter by allowed actions via strategy
                     targets_with_actions = choose_targets_with_strategy(
-                        entities=actionable_entities,
+                        entities=owned_entities,
                         rep_id=rep.id,
                         strategy=rep.strategy
                     )
+                    actionable_entities = [e for e, allowed in targets_with_actions if allowed]
 
-                    # Now pick a chosen entity from the updated actionable_entities
-                    chosen_entity = pick_entity_for_rep(rep, actionable_entities)
-                    
-                # print(chosen_entity.id)
-                allowed_actions = [a for e, a in targets_with_actions if e == chosen_entity][0]
-                chosen_actions = [micro_policy(rep, chosen_entity)]
-                
-                
-                
-                telemetry = rep.work_entity(chosen_entity, micro_actions=chosen_actions, accounts=accounts, opportunities = opportunities)
+                    if not actionable_entities:
+                        new_leads = generate_random_leads(n=random.randint(1, 2))
+                        leads.extend(new_leads)
+                        owned_entities.extend(new_leads)
+                        for lead in new_leads:
+                            logger.log_macro(
+                                day=day,
+                                rep_id=rep.id,
+                                entity_id=lead.id,
+                                macro_name="New Lead",
+                                advanced=True,
+                                old_stage=None,
+                                new_stage=None,
+                                probability=None,
+                            )
+                        continue
 
-                    
-                    
-                for m in telemetry['micro_results']:
-                    logger.log_micro(
-                        day=day,
-                        rep_id=rep.id,
-                        entity_id=chosen_entity.id,
-                        action=m['action'],
-                        cost=MICRO_ACTIONS[m['action']].cost,
-                        success=m['success'],
-                        attention_remaining=m.get('remaining_attention', rep.attention_remaining),
-                        sentiment_delta=m.get('sentiment_delta'),
-                        sentiment_total=m.get('sentiment_total'),
+                    # pick_entity_for_rep draws from the same filtered list
+                    # that targets_with_actions was built from, so entity identity
+                    # is always guaranteed to be present in the lookup below.
+                    filtered_entities = [e for e, _ in targets_with_actions]
+                    chosen_entity = pick_entity_for_rep(rep, filtered_entities)
+
+                    if chosen_entity is None:
+                        new_leads = generate_random_leads(n=random.randint(1, 2))
+                        leads.extend(new_leads)
+                        owned_entities.extend(new_leads)
+                        for lead in new_leads:
+                            logger.log_macro(
+                                day=day,
+                                rep_id=rep.id,
+                                entity_id=lead.id,
+                                macro_name="New Lead",
+                                advanced=True,
+                                old_stage=None,
+                                new_stage=None,
+                                probability=None,
+                            )
+                        # Loop back to rebuild targets_with_actions with new leads
+                        continue
+
+                    chosen_actions = [micro_policy(rep, chosen_entity)]
+
+                    telemetry = rep.work_entity(
+                        chosen_entity,
+                        micro_actions=chosen_actions,
+                        accounts=accounts,
+                        opportunities=opportunities,
                     )
-                    
-                    
-                for macro in telemetry["macro_result"]:
-                    if (
-                        macro.get("old_stage")
-                        and macro.get("old_stage") != getattr(chosen_entity, "stage", None)
-                    ):
 
-                        result = macro.get('result')
-                        if isinstance(result, dict):
-                            spawned_account = result['account']
-
-                            spawned_oppo = result['opportunity']
-
-                            if spawned_account == None:
-                                continue
-
-                            logger.log_macro(
-                                rep_id=spawned_account.rep_id,
-                                entity_id=None,
-                                macro_name='Spawn Account',
-                                old_stage='Lead',
-                                new_stage=macro.get("new_stage"),
-                                probability=macro.get("probability"),
-                                day = day,
-                                advanced = macro.get('advanced'),
-                            )
-
-                            logger.log_macro(
-                                rep_id=spawned_oppo.rep_id,
-                                entity_id=spawned_oppo.id,
-                                macro_name='Spawn Opportunity',
-                                old_stage='None',
-                                new_stage=macro.get("new_stage"),
-                                probability=macro.get("probability"),
-                                day = day,
-                                advanced = macro.get('advanced'),
-
-                            )
-
-
-                        logger.log_macro(
+                    for m in telemetry['micro_results']:
+                        # Skip logging for personality-flaw non-events
+                        # (distracted, skipped_by_aggression, empathy_bonus_touch failures)
+                        if m.get('reason') in ('distracted', 'skipped_by_aggression'):
+                            continue
+                        action_name = m['action']
+                        action_cost = MICRO_ACTIONS[action_name].cost if m['success'] else 0
+                        logger.log_micro(
+                            day=day,
                             rep_id=rep.id,
-                            entity_id=getattr(chosen_entity, "id", None),
-                            macro_name=macro.get("macro_name"),
-                            old_stage=macro.get("old_stage"),
-                            new_stage=macro.get("new_stage"),
-                            probability=macro.get("probability"),
-                            day = day,
-                            advanced = macro.get('advanced')
+                            entity_id=chosen_entity.id,
+                            action=action_name,
+                            cost=action_cost,
+                            success=m['success'],
+                            attention_remaining=m.get('remaining_attention', rep.attention_remaining),
+                            sentiment_delta=m.get('sentiment_delta'),
+                            sentiment_total=m.get('sentiment_total'),
                         )
 
-                    
-                if telemetry['micro_results'][0]['success'] == False:
+                    for macro in telemetry["macro_result"]:
+                        if (
+                            macro.get("old_stage")
+                            and macro.get("old_stage") != getattr(chosen_entity, "stage", None)
+                        ):
+                            result = macro.get('result')
+                            if isinstance(result, dict):
+                                spawned_account = result['account']
+                                spawned_oppo = result['opportunity']
 
-                    break
-                    
-                    
-                    
-                    
-                    
+                                if spawned_account is None:
+                                    continue
+
+                                logger.log_macro(
+                                    rep_id=spawned_account.rep_id,
+                                    entity_id=None,
+                                    macro_name='Spawn Account',
+                                    old_stage='Lead',
+                                    new_stage=macro.get("new_stage"),
+                                    probability=macro.get("probability"),
+                                    day=day,
+                                    advanced=macro.get('advanced'),
+                                )
+                                logger.log_macro(
+                                    rep_id=spawned_oppo.rep_id,
+                                    entity_id=spawned_oppo.id,
+                                    macro_name='Spawn Opportunity',
+                                    old_stage='None',
+                                    new_stage=macro.get("new_stage"),
+                                    probability=macro.get("probability"),
+                                    day=day,
+                                    advanced=macro.get('advanced'),
+                                )
+
+                            logger.log_macro(
+                                rep_id=rep.id,
+                                entity_id=getattr(chosen_entity, "id", None),
+                                macro_name=macro.get("macro_name"),
+                                old_stage=macro.get("old_stage"),
+                                new_stage=macro.get("new_stage"),
+                                probability=macro.get("probability"),
+                                day=day,
+                                advanced=macro.get('advanced'),
+                            )
+
+                    if telemetry['micro_results'][0]['success'] == False:
+                        break
+
+            # Entity aging, sentiment decay, and pipeline death run every day
+            # including weekends — deals age regardless of whether reps work.
             for entity in owned_entities:
                 if entity.is_closed:
                     continue
