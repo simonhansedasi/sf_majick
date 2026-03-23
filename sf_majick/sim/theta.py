@@ -171,8 +171,12 @@ theta = {
     "noise_sigma_macro": 0.03,
 
     # Loss / decay hazard factors
-    "inactivity_alpha": 0.02,
-    "stagnation_alpha": 0.015,
+    # Halved from 0.02/0.015: with the per-type damper fix the raw prob_lost
+    # growth was still too aggressive for leads (90% dead by day 30). These
+    # values give ~50% lead survival at day 30 for a neglected lead, which is
+    # realistic — a cold lead should fade but not die in the first month.
+    "inactivity_alpha": 0.010,
+    "stagnation_alpha": 0.008,
     
     'momentum_carryover': 0.25,
     'friction_carryover': 0.15,

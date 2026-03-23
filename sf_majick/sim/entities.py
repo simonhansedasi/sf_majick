@@ -72,6 +72,7 @@ class MicroState:
     def meets_requirements(self, req):
         if req is None:
             return True
+        # print(req)
 
         if not isinstance(req, dict):
             raise ValueError(f"Invalid requirement format: {req}")
@@ -140,7 +141,7 @@ class MicroState:
             actual_count = self.get(action_name, 0)
             if actual_count < count:
                 return False
-
+        # print(req)
         return True
     
     
@@ -338,7 +339,7 @@ class Lead:
     sentiment_history: list = field(default_factory=list)
     revenue: float = None
     commission: float = None
-    difficulty: float = None
+    difficulty: float = 0.05
     account_name: str = ''
     personality: Optional[LeadPersonality] = None
     stage_advanced_today: bool = False
@@ -349,19 +350,14 @@ class Lead:
     def __post_init__(self):
         # Randomize revenue if needed
         if self.revenue is None:
-            # self.revenue = random.randint(10_000, 500_000)
-            
-            
-            
-            # new log-normal line
-            # mean=0, sigma=0.6 gives a realistic spread; scale to the mid-point ~250k
-            base = 350_000  # center of revenue
-            sigma = 0.6     # controls spread / skew
-            self.revenue = base * np.random.lognormal(mean=3, sigma=sigma)
-
-            # optional: clamp to min/max if you want hard bounds
-            # self.revenue = max(15_000, min(self.revenue, 1_750_000))
-            # print(self.revenue)
+            # Old formula (base=350_000, lognormal mean=3) produced revenues in the
+            # multi-millions via exp(3)≈20x, which caused difficulty_scaled to
+            # heavily penalise compute_lead_probability before any engagement.
+            # New formula centers around $50k with moderate spread — realistic for
+            # an unqualified B2B lead. Large deals emerge naturally as outliers.
+            base = 50_000
+            sigma = 0.5
+            self.revenue = max(10_000, base * np.random.lognormal(mean=0, sigma=sigma))
             
             
             

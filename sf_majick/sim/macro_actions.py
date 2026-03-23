@@ -53,15 +53,13 @@ def can_attempt_close(entity: Opportunity) -> bool:
 
 
 def can_convert_lead(entity: Lead) -> bool:
-    if (
-        entity.micro_state.send_email >= 1 and
-        entity.micro_state.hold_meeting >= 1 and
-        entity.micro_state.make_call >= 1 and
-        entity.micro_state.internal_prep >= 1
-    ):
-        return True
-    else:
-        return False
+    """
+    Relaxed gate: internal_prep removed. It required a meeting first, making
+    the original 4-way AND nearly unreachable before the lead decayed.
+    Now requires email contact plus either a meeting or two calls.
+    """
+    ms = entity.micro_state
+    return ms.send_email >= 1 and (ms.hold_meeting >= 1 or ms.make_call >= 2)
 
 
 
@@ -224,7 +222,23 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
     # -----------------------------
     if isinstance(entity, (Lead, Opportunity)):
         loss_prob = prob_lost(entity, rep)
-        if random.random() < max(0, loss_prob - 0.25):  # optional decay adjustment
+
+        # Leads: stage_mult=0.6 means prob_lost*0.6 never exceeds ~0.17.
+        # A flat -0.25 damper would zero it out entirely, making leads immortal
+        # via this path. Use a small lead-specific damper instead, and add a
+        # grace period for brand-new untouched leads.
+        if isinstance(entity, Lead):
+            ms = entity.micro_state
+            total_touches = ms.get("send_email", 0) + ms.get("make_call", 0)
+            if total_touches == 0 and getattr(entity, "days_in_stage", 0) < 10:
+                adjusted_loss_prob = 0.0   # grace period: never-touched new lead
+            else:
+                adjusted_loss_prob = max(0.0, loss_prob - 0.05)
+        else:
+            # Opportunities can reach prob_lost > 0.25 at late stages — full damper
+            adjusted_loss_prob = max(0.0, loss_prob - 0.25)
+
+        if random.random() < adjusted_loss_prob:
             result = _close_lost_effect(entity, rep, accounts=accounts, opportunities=opportunities)
             macros_fired.append({
                 'advanced': getattr(entity, "stage", old_stage) != old_stage,
@@ -241,7 +255,30 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
             old_stage = getattr(entity, "stage", old_stage)
 
     # -----------------------------
-    # 2️⃣ Lead Conversion
+    # 2️⃣ Lead Stage Advancement (Lead → Lead Qualified)
+    # -----------------------------
+    if isinstance(entity, Lead) and not getattr(entity, "is_closed", False):
+        if entity.stage == "Lead" and can_attempt_advancement(entity):
+            advance_prob = compute_stage_progress_probability(entity)
+            if random.random() < advance_prob:
+                entity.advance_stage()
+                apply_cooldown(entity)
+                macros_fired.append({
+                    'advanced': True,
+                    'old_stage': old_stage,
+                    'new_stage': entity.stage,
+                    'macro_name': 'Lead Advance Stage',
+                    'probability': advance_prob,
+                    'result': None,
+                    'momentum': derived_momentum(entity),
+                    'friction': derived_friction(entity),
+                    'momentum_delta': derived_momentum(entity) - old_momentum,
+                    'friction_delta': derived_friction(entity) - old_friction,
+                })
+                old_stage = entity.stage
+
+    # -----------------------------
+    # 3️⃣ Lead Conversion
     # -----------------------------
     if isinstance(entity, Lead) and not getattr(entity, "is_closed", False):
         if can_convert_lead(entity):
@@ -250,7 +287,8 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
                 result = convert_lead(entity, rep, accounts, opportunities)
                 advanced = True
             else:
-                entity.mark_lost()
+                # Don't mark lost on a missed conversion roll — the lead stays
+                # alive so the rep can keep engaging and retry tomorrow.
                 result = None
                 advanced = False
 
@@ -272,7 +310,7 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
             old_stage = getattr(entity, "stage", old_stage)
 
     # -----------------------------
-    # 3️⃣ Close Opportunity
+    # 4️⃣ Close Opportunity
     # -----------------------------
     if isinstance(entity, Opportunity) and getattr(entity, "stage", None) == "Negotiation":
         if can_attempt_close(entity):
@@ -295,7 +333,7 @@ def attempt_macro_for_entity(entity, rep: 'SalesRep' = None,
                 old_stage = getattr(entity, "stage", old_stage)
 
     # -----------------------------
-    # 4️⃣ Stage Advancement
+    # 5️⃣ Stage Advancement
     # -----------------------------
     if isinstance(entity, Opportunity):
         if can_attempt_advancement(entity):
@@ -405,11 +443,14 @@ def get_scaled_micro_requirements(entity, theta):
     if base_requirements is None:
         return None
 
-    difficulty_scaled = entity.difficulty * (
-        entity.revenue / theta["revenue_base"]
+    difficulty = entity.difficulty or 0.05
+    revenue    = entity.revenue    or theta["revenue_base"]
+
+    difficulty_scaled = difficulty * (
+        revenue / theta["revenue_base"]
     ) ** theta["revenue_exponent"]
-    # easier entities require fewer actions
-    scale = 1.0 + difficulty_scaled
+    # easier entities require fewer actions; cap at 1.5x so hard deals stay achievable
+    scale = min(1.0 + difficulty_scaled, 1.5)
 
     return scale_requirement_tree(base_requirements, scale)
 

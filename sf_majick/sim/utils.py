@@ -131,6 +131,7 @@ def generate_random_leads(n: int, min_revenue: int = 100_000, max_revenue: int =
 # Stage Cooldowns
 # ---------------------------------------------------------------------
 COOLDOWN_STAGE_MAP = {
+    "Lead Qualified": 1,
     "Prospecting": 2,
     "Qualification": 3,
     "Proposal": 3,
@@ -154,6 +155,28 @@ MICRO_REQUIREMENTS_BY_STAGE = {
                     {"sequence":[{"send_email":1},{"make_call":1}]},
                     {"sequence":[{"make_call":1},{"send_email":1}]},
                     {"chance":0.40, "req":{"send_email":1}}
+                ]
+            }
+        ]
+    },
+
+    # -------------------------
+    # LEAD QUALIFIED
+    # -------------------------
+    "Lead Qualified": {
+        "and":[
+            {
+                "min_total":{
+                    "actions":["send_email","make_call","hold_meeting","research_account"],
+                    "count":2
+                }
+            },
+            {
+                "or":[
+                    {"hold_meeting":1},
+                    {"sequence":[{"send_email":1},{"make_call":1}]},
+                    {"sequence":[{"make_call":1},{"send_email":1}]},
+                    {"chance":0.35, "req":{"min_total":{"actions":["send_email","make_call"],"count":2}}}
                 ]
             }
         ]
@@ -255,6 +278,7 @@ MICRO_REQUIREMENTS_BY_STAGE = {
 # --- PIPELINE STAGES ---
 PIPELINE_STAGES: List[str] = [
     'Lead',
+    'Lead Qualified',
     'Prospecting',
     'Qualification',
     'Proposal',

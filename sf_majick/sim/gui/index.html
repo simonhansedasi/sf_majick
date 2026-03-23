@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sf_majick — Org Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>sf_majick — org simulator</h1>
+        <p>Generate a synthetic org, run the sim, fit from CSV, export OrgConfig</p>
+      </div>
+      <button class="btn btn-primary" onclick="randomizeAll(); showTab('setup')">↻ Random org</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('setup')">Setup</button>
+    <button class="tab" onclick="showTab('sim')">Simulation</button>
+    <button class="tab" onclick="showTab('fitter')">Org fitter</button>
+    <button class="tab" onclick="showTab('csv')">CSV import</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ SETUP -->
+  <div id="tab-setup">
+
+    <div class="panel">
+      <div class="panel-title">Simulation control</div>
+      <div class="two-col">
+        <div class="slider-row"><label>Sim days</label><input type="range" id="s-days" min="30" max="365" value="90" step="5" oninput="sync(this,'v-days')"><span id="v-days">90</span></div>
+        <div class="slider-row"><label>Seed accounts</label><input type="range" id="s-accts" min="2" max="60" value="10" step="1" oninput="sync(this,'v-accts')"><span id="v-accts">10</span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Team</div>
+        <div class="slider-row"><label>Total reps</label><input type="range" id="s-nreps" min="1" max="40" value="8" step="1" oninput="sync(this,'v-nreps')"><span id="v-nreps">8</span></div>
+        <div class="slider-row"><label>Seed leads</label><input type="range" id="s-leads" min="0" max="30" value="4" step="1" oninput="sync(this,'v-leads')"><span id="v-leads">4</span></div>
+        <div class="slider-row"><label>Closer %</label><input type="range" id="s-closer" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-closer','pct')"><span id="v-closer">30%</span></div>
+        <div class="slider-row"><label>Nurturer %</label><input type="range" id="s-nurturer" min="0" max="1" value="0.25" step="0.05" oninput="sync(this,'v-nurturer','pct')"><span id="v-nurturer">25%</span></div>
+        <div class="slider-row"><label>Grinder %</label><input type="range" id="s-grinder" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-grinder','pct')"><span id="v-grinder">30%</span></div>
+        <div class="slider-row"><label>Scattered %</label><input type="range" id="s-scattered" min="0" max="1" value="0.15" step="0.05" oninput="sync(this,'v-scattered','pct')"><span id="v-scattered">15%</span></div>
+        <div class="slider-row"><label>Comp rate</label><input type="range" id="s-comp" min="0.5" max="2.0" value="1.0" step="0.05" oninput="sync(this,'v-comp','x')"><span id="v-comp">1.0×</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Account personalities</div>
+        <div class="slider-row"><label>Analytical Skeptic</label><input type="range" id="s-skeptic" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-skeptic','pct')"><span id="v-skeptic">30%</span></div>
+        <div class="slider-row"><label>Urgent Pragmatist</label><input type="range" id="s-urgent" min="0" max="1" value="0.40" step="0.05" oninput="sync(this,'v-urgent','pct')"><span id="v-urgent">40%</span></div>
+        <div class="slider-row"><label>Price-Sensitive</label><input type="range" id="s-price" min="0" max="1" value="0.20" step="0.05" oninput="sync(this,'v-price','pct')"><span id="v-price">20%</span></div>
+        <div class="slider-row"><label>Easy-Going Follower</label><input type="range" id="s-easy" min="0" max="1" value="0.10" step="0.05" oninput="sync(this,'v-easy','pct')"><span id="v-easy">10%</span></div>
+        <p class="note">Weights normalised automatically.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Close &amp; lost</div>
+        <div class="slider-row"><label>Base close rate</label><input type="range" id="s-close" min="0.01" max="0.60" value="0.15" step="0.01" oninput="sync(this,'v-close','pct')"><span id="v-close">15%</span></div>
+        <div class="slider-row"><label>Base lost rate (daily)</label><input type="range" id="s-lost" min="0.001" max="0.15" value="0.035" step="0.001" oninput="sync(this,'v-lost','pct2')"><span id="v-lost">3.5%</span></div>
+        <div class="slider-row"><label>Inactivity alpha</label><input type="range" id="s-inactivity" min="0.001" max="0.05" value="0.010" step="0.001" oninput="sync(this,'v-inactivity','dec3')"><span id="v-inactivity">0.010</span></div>
+        <div class="slider-row"><label>Stagnation alpha</label><input type="range" id="s-stagnation" min="0.001" max="0.05" value="0.008" step="0.001" oninput="sync(this,'v-stagnation','dec3')"><span id="v-stagnation">0.008</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Stage advancement (daily base prob)</div>
+        <div class="slider-row"><label>Prospecting</label><input type="range" id="s-p-prosp" min="0.005" max="0.30" value="0.08" step="0.005" oninput="sync(this,'v-p-prosp','pct')"><span id="v-p-prosp">8%</span></div>
+        <div class="slider-row"><label>Qualification</label><input type="range" id="s-p-qual" min="0.005" max="0.20" value="0.04" step="0.005" oninput="sync(this,'v-p-qual','pct')"><span id="v-p-qual">4%</span></div>
+        <div class="slider-row"><label>Proposal</label><input type="range" id="s-p-prop" min="0.005" max="0.15" value="0.02" step="0.005" oninput="sync(this,'v-p-prop','pct')"><span id="v-p-prop">2%</span></div>
+        <div class="slider-row"><label>Negotiation</label><input type="range" id="s-p-neg" min="0.002" max="0.10" value="0.01" step="0.002" oninput="sync(this,'v-p-neg','pct')"><span id="v-p-neg">1%</span></div>
+        <div class="slider-row"><label>Lead conversion</label><input type="range" id="s-p-lead" min="0.01" max="0.60" value="0.25" step="0.01" oninput="sync(this,'v-p-lead','pct')"><span id="v-p-lead">25%</span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Sentiment &amp; momentum</div>
+        <div class="slider-row"><label>Sentiment beta (opp)</label><input type="range" id="s-sent-opp" min="0.0" max="1.0" value="0.20" step="0.05" oninput="sync(this,'v-sent-opp','dec2')"><span id="v-sent-opp">0.20</span></div>
+        <div class="slider-row"><label>Sentiment beta (lead)</label><input type="range" id="s-sent-lead" min="0.0" max="1.0" value="0.10" step="0.05" oninput="sync(this,'v-sent-lead','dec2')"><span id="v-sent-lead">0.10</span></div>
+        <div class="slider-row"><label>Momentum beta (opp)</label><input type="range" id="s-mom-opp" min="0.0" max="2.0" value="0.75" step="0.05" oninput="sync(this,'v-mom-opp','dec2')"><span id="v-mom-opp">0.75</span></div>
+        <div class="slider-row"><label>Friction beta (opp)</label><input type="range" id="s-fric-opp" min="0.0" max="2.0" value="0.50" step="0.05" oninput="sync(this,'v-fric-opp','dec2')"><span id="v-fric-opp">0.50</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Deal economics</div>
+        <div class="slider-row"><label>Revenue log-mean (ln$)</label><input type="range" id="s-rev-mu" min="9" max="15" value="10.82" step="0.1" oninput="sync(this,'v-rev-mu','dec1')"><span id="v-rev-mu">10.8</span></div>
+        <div class="slider-row"><label>Revenue log-sigma</label><input type="range" id="s-rev-sig" min="0.2" max="2.5" value="0.8" step="0.1" oninput="sync(this,'v-rev-sig','dec1')"><span id="v-rev-sig">0.8</span></div>
+        <div class="slider-row"><label>Difficulty mean</label><input type="range" id="s-diff" min="0.01" max="0.20" value="0.06" step="0.01" oninput="sync(this,'v-diff','dec2')"><span id="v-diff">0.06</span></div>
+        <div class="slider-row"><label>Commission rate</label><input type="range" id="s-comm-rate" min="0.02" max="0.20" value="0.08" step="0.01" oninput="sync(this,'v-comm-rate','pct')"><span id="v-comm-rate">8%</span></div>
+        <p class="note" id="rev-preview"></p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="randomizeAll()">↻ Roll random org</button>
+      <button class="btn btn-primary" onclick="runSim()">▶ Run simulation</button>
+      <button class="btn" onclick="resetDefaults()">Reset defaults</button>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════ SIMULATION -->
+  <div id="tab-sim" style="display:none">
+    <div id="sim-empty" class="placeholder">Configure the org in Setup, then click Run simulation.</div>
+    <div id="sim-results" style="display:none">
+      <div class="metric-grid" id="sim-metrics"></div>
+      <div class="two-col">
+        <div class="panel"><div class="panel-title">Team</div><div id="rep-list"></div></div>
+        <div class="panel"><div class="panel-title">Stage distribution</div><div id="stage-bars"></div></div>
+      </div>
+      <div class="panel"><div class="panel-title">Pipeline sample (up to 20)</div><div id="opp-table"></div></div>
+      <div class="panel"><div class="panel-title">Daily activity (last 30 days)</div><canvas id="activity-chart" style="width:100%;height:180px;display:block"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ ORG FITTER -->
+  <div id="tab-fitter" style="display:none">
+    <div id="fitter-empty" class="placeholder">Run the simulation first, then fit the org.</div>
+    <div id="fitter-content" style="display:none">
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="fitOrg()">Fit org from sim data</button>
+        <span id="fit-status" class="status-text"></span>
+      </div>
+      <div id="fit-output" style="display:none">
+        <div class="two-col">
+          <div class="panel"><div class="panel-title">Fitted parameters</div><div id="fit-fields"></div></div>
+          <div class="panel"><div class="panel-title">Validation</div><div id="fit-validation"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">OrgConfig JSON</div>
+          <pre id="fit-json"></pre>
+          <div class="btn-row">
+            <button class="btn" onclick="copyEl('fit-json')">Copy JSON</button>
+            <button class="btn" onclick="downloadEl('fit-json','fitted_config.json')">Download</button>
+          </div>
+        </div>
+        <div class="panel"><div class="panel-title">Python snippet</div><pre id="fit-python"></pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ CSV IMPORT -->
+  <div id="tab-csv" style="display:none">
+
+    <div class="panel">
+      <div class="panel-title">Opportunities CSV <span class="optional-tag">required</span></div>
+      <p class="help-text">Export from Salesforce → Reports → Opportunities. Common column names are auto-detected (StageName, Amount, CloseDate, CreatedDate, OwnerId, AccountId).</p>
+      <div class="drop-zone" id="drop-opps" onclick="document.getElementById('f-opps').click()">
+        <input type="file" id="f-opps" accept=".csv" style="display:none" onchange="loadCsv('opps',this)">
+        <span id="drop-opps-label">Click to choose file, or drag and drop</span>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Users CSV <span class="optional-tag">optional</span></div>
+        <div class="drop-zone" id="drop-users" onclick="document.getElementById('f-users').click()">
+          <input type="file" id="f-users" accept=".csv" style="display:none" onchange="loadCsv('users',this)">
+          <span id="drop-users-label">Click or drop — improves rep count</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Leads CSV <span class="optional-tag">optional</span></div>
+        <div class="drop-zone" id="drop-leads" onclick="document.getElementById('f-leads').click()">
+          <input type="file" id="f-leads" accept=".csv" style="display:none" onchange="loadCsv('leads',this)">
+          <span id="drop-leads-label">Click or drop — enables lead conversion rate</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="col-mapping-panel" style="display:none">
+      <div class="panel-title">Column mapping</div>
+      <p class="help-text">Auto-detected columns shown. Override any that were missed.</p>
+      <div id="col-mapping-grid" class="two-col" style="gap:8px 24px"></div>
+    </div>
+
+    <div id="csv-fit-row" style="display:none">
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="fitFromCsv()">Fit org from CSV</button>
+        <span id="csv-fit-status" class="status-text"></span>
+      </div>
+    </div>
+
+    <div id="csv-fit-output" style="display:none">
+      <div class="metric-grid" id="csv-summary"></div>
+      <div class="two-col">
+        <div class="panel"><div class="panel-title">Fitted parameters</div><div id="csv-fit-fields"></div></div>
+        <div class="panel">
+          <div class="panel-title">Observed distributions</div>
+          <div id="csv-distributions"></div>
+          <canvas id="csv-stage-chart" style="width:100%;height:150px;display:block;margin-top:12px"></canvas>
+        </div>
+      </div>
+      <div class="panel"><div class="panel-title">Warnings</div><div id="csv-warnings"></div></div>
+      <div class="panel">
+        <div class="panel-title">OrgConfig JSON</div>
+        <pre id="csv-fit-json"></pre>
+        <div class="btn-row">
+          <button class="btn" onclick="copyEl('csv-fit-json')">Copy JSON</button>
+          <button class="btn" onclick="downloadEl('csv-fit-json','csv_fitted_config.json')">Download</button>
+          <button class="btn btn-primary" onclick="loadCsvIntoSetup()">Load into Setup →</button>
+        </div>
+      </div>
+      <div class="panel"><div class="panel-title">Python snippet</div><pre id="csv-fit-python"></pre></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="sim.js"></script>
+<script src="ui.js"></script>
+<script src="csv.js"></script>
+<script>
+  init();
+</script>
+</body>
+</html>

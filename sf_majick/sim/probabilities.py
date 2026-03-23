@@ -17,28 +17,33 @@ def simulate_macro_probability(entity, rep=None) -> float:
     Estimate probability that a macro (stage advancement or lead conversion) succeeds.
     Works for both Leads and Opportunities.
     Returns a number between 0 and 1.
+
+    Stage bases now read from theta for consistency with the actual macro firing
+    functions. Difficulty scaling is also applied so rep strategy scoring is
+    difficulty-aware rather than treating all deals as equally hard.
     """
     if getattr(entity, "is_closed", False):
         return 0.0
 
-    # Base daily probabilities for each stage
     stage_probs = {
-        "Lead": 0.05,
-        "Prospecting": 0.08,
-        "Qualification": 0.04,
-        "Proposal": 0.02,
-        "Negotiation": 0.01,
+        "Lead":          theta["base_prob_lead"],
+        "Prospecting":   theta["base_prob_prospecting"],
+        "Qualification": theta["base_prob_qualification"],
+        "Proposal":      theta["base_prob_proposal"],
+        "Negotiation":   theta["base_prob_negotiation"],
     }
-    base = stage_probs.get(getattr(entity, "stage", "Lead"), 0.05)
+    base = stage_probs.get(getattr(entity, "stage", "Lead"), theta["base_prob_default"])
 
-    # Behavioral modifiers (scaled)
-    momentum = getattr(entity, "momentum", 0.0) * 0.25
-    friction = getattr(entity, "friction", 0.0) * 0.25
+    revenue    = getattr(entity, "revenue", theta["revenue_base"]) or theta["revenue_base"]
+    difficulty = getattr(entity, "difficulty", 0.05) or 0.05
+    difficulty_scaled = difficulty * (revenue / theta["revenue_base"]) ** theta["revenue_exponent"]
+
+    momentum  = derived_momentum(entity)
+    friction  = derived_friction(entity)
     sentiment = getattr(entity, "sentiment", 0.0)
-    sentiment_factor = np.clip(sentiment / 5, -1, 1) * 0.2
+    sentiment_factor = np.clip(sentiment / theta["sentiment_scale"], -1, 1) * theta["sentiment_beta_opportunity"]
 
-    # Combine factors
-    prob = base + momentum - friction + sentiment_factor
+    prob = base - difficulty_scaled + momentum * 0.25 - friction * 0.25 + sentiment_factor
     return np.clip(prob, 0.0, 1.0)
     
 # -----------------------------

@@ -151,7 +151,8 @@ MICRO_ACTIONS = {
             "or":[
                 {"hold_meeting":1},
                 {"follow_up":1},
-                {"solution_design":1}
+                {"solution_design":1},
+                {"chance":0.40, "req":{"min_total":{"actions":["send_email","make_call"],"count":2}}},
             ]
         }
     ),
@@ -164,7 +165,8 @@ MICRO_ACTIONS = {
             "or":[
                 {"internal_prep":1},
                 {"hold_meeting":1},
-                {"follow_up":1}
+                {"follow_up":1},
+                {"chance":0.30, "req":{"min_total":{"actions":["send_email","make_call","research_account"],"count":3}}},
             ]
         }
     ),
@@ -254,53 +256,48 @@ MICRO_ACTIONS = {
         send_proposal,
         requirements={
             "or":[
-                # Standard B2B progression
+                # Lightweight path: any rep who has done the core mid-stage work
+                {
+                    "and":[
+                        {"min_total":{"actions":["hold_meeting","follow_up"],"count":1}},
+                        {"min_total":{"actions":["solution_design","stakeholder_alignment","internal_prep"],"count":1}},
+                        {"min_total":{"actions":["send_email","make_call"],"count":4}},
+                    ]
+                },
+                # Standard B2B progression (kept, but counts realistic for 300-day sim)
                 {
                     "sequence":[
                         {"research_account":1},
-                        {"send_email":18},
-                        {"make_call":17},
-                        {"hold_meeting":3},
-                        {"follow_up":3},
-                        {"internal_prep":2},
+                        {"send_email":8},
+                        {"make_call":6},
+                        {"hold_meeting":2},
+                        {"follow_up":2},
+                        {"internal_prep":1},
                         {"solution_design":1},
                         {"stakeholder_alignment":1}
                     ]
                 },
-                # Enterprise consultative path
+                # Consultative path
                 {
                     "sequence":[
-                        {"internal_prep":5},
-                        {"send_email":19},
-                        {"make_call":16},
-                        {"hold_meeting":3},
-                        {"follow_up":3},
+                        {"internal_prep":2},
+                        {"send_email":8},
+                        {"make_call":6},
+                        {"hold_meeting":2},
+                        {"follow_up":2},
                         {"solution_design":1}
                     ]
                 },
                 # Long nurture conversion
                 {
                     "sequence":[
-                        {"send_email":28},
-                        {"make_call":29},
-                        {"follow_up":5},
+                        {"send_email":12},
+                        {"make_call":10},
+                        {"follow_up":3},
                         {"hold_meeting":2},
                         {"solution_design":1}
                     ]
                 },
-                # Rare stochastic close
-                {
-                    "chance":0.002,
-                    "req":{
-                        "and":[
-                            {"hold_meeting":10},
-                            {"follow_up":3},
-                            {"make_call":27},
-                            {"send_email":44},
-                            {"stakeholder_alignment":1}
-                        ]
-                    }
-                }
             ]
         }
     ),
@@ -334,6 +331,7 @@ def execute_micro_action(entity, action_name: str, available_attention: int, rep
     can_do = True
     if hasattr(entity.micro_state, "can_perform"):
         can_do = entity.micro_state.can_perform(action_name)
+        # print(action_name, can_do)
 
     if not can_do:
         return {
