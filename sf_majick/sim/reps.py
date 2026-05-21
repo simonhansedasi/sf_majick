@@ -94,6 +94,7 @@ class SalesRep:
     strategy: Optional[Strategy]     = None
     earnings: float                  = 0.0
     comp_rate: float                 = 1.0
+    start_day: int                   = 0      # day this rep joins the sim
 
     # --- internal state (not constructor args) ---
     _attention_remaining: int        = field(init=False)

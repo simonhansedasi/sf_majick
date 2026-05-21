@@ -384,6 +384,7 @@ def build_sentiment_effects(micro, macro, deals):
 # deals   = cleaned terminal state (output)
 # ==================================================================
 
-deals = build_deals(opps_df, macro, micro, n_runs=25)
+if __name__ == "__main__":
+    deals = build_deals(opps_df, macro, micro, n_runs=25)
 
-raw, adjusted, by_stage, timeseries = build_sentiment_effects(micro, macro, deals)
+    raw, adjusted, by_stage, timeseries = build_sentiment_effects(micro, macro, deals)

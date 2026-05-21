@@ -63,12 +63,15 @@ def run_simulation(
     for day in tqdm(range(1, days + 1)):
         weekend = is_weekend(day)
 
+        # Reps whose start_day has arrived are active for the rest of the sim.
+        active_reps = [r for r in reps if r.start_day <= day]
+
         # -----------------------------
         # Daily Reset Phase
         # -----------------------------
         # print(day)
         decrement_cooldowns(opportunities)
-        for rep in reps:
+        for rep in active_reps:
             # On weekends stress decays faster (genuine rest) but attention
             # is not used, so we still call reset_day() for the side effects
             # and then manually boost stress recovery.
@@ -136,10 +139,10 @@ def run_simulation(
                     continue
 
                 # Compute strategy utilities for all reps
-                utilities = [strategy_weighted_utility(entity, r.strategy) for r in reps]
+                utilities = [strategy_weighted_utility(entity, r.strategy) for r in active_reps]
                 total = sum(utilities)
-                chosen_rep = random.choice(reps) if total == 0 else random.choices(
-                    reps, weights=[u / total for u in utilities], k=1
+                chosen_rep = random.choice(active_reps) if total == 0 else random.choices(
+                    active_reps, weights=[u / total for u in utilities], k=1
                 )[0]
 
                 entity.rep_id = chosen_rep.id
@@ -147,8 +150,8 @@ def run_simulation(
         # -----------------------------
         # Each rep works their entities  (weekdays only)
         # -----------------------------
-        
-        for rep in reps:
+
+        for rep in active_reps:
             owned_entities = [e for e in opportunities + leads if e.rep_id == rep.id and not e.is_closed]
 
             if not weekend:
@@ -158,6 +161,8 @@ def run_simulation(
                 
                 
             if not weekend:
+                daily_actions = 0
+                daily_deals_worked: set = set()
                 while rep.attention_remaining > 20:
                     # Filter by allowed actions via strategy
                     targets_with_actions = choose_targets_with_strategy(
@@ -216,6 +221,9 @@ def run_simulation(
                         accounts=accounts,
                         opportunities=opportunities,
                     )
+
+                    daily_actions += sum(1 for m in telemetry['micro_results'] if m.get('success'))
+                    daily_deals_worked.add(chosen_entity.id)
 
                     for m in telemetry['micro_results']:
                         # Skip logging for personality-flaw non-events
@@ -283,6 +291,8 @@ def run_simulation(
 
                     if telemetry['micro_results'][0]['success'] == False:
                         break
+
+                rep.end_of_day(daily_actions, len(daily_deals_worked))
 
             # Entity aging, sentiment decay, and pipeline death run every day
             # including weekends — deals age regardless of whether reps work.
@@ -352,12 +362,6 @@ def pick_entity_for_rep(rep, entities):
 
     if np.std(scores) < 1e-8:
         scores += np.random.normal(0, 1e-4, size=len(scores))
-
-    probs = softmax(scores, temperature=0.5)
-
-    # if np.any(np.isnan(probs)):
-        # print("SOFTMAX BROKE")
-        # print(scores)
 
     probs = softmax(scores, temperature=1.5)
     # print('probs', probs)

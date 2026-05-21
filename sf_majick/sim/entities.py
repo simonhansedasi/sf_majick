@@ -28,8 +28,6 @@ class MicroState:
     
     
     
-    import random
-
     def meets_requirements_prob(self, req, base_prob=0.2):
         """
         Returns True if:
@@ -67,8 +65,6 @@ class MicroState:
         return sum(ratios) / len(ratios)
     
     
-    import random
-
     def meets_requirements(self, req):
         if req is None:
             return True
@@ -172,32 +168,24 @@ class MicroState:
 
         if not isinstance(req, dict):
             raise ValueError(f"Invalid requirement node: {req}")
-            for r in req["or"]:
-                if self.meets_requirements(r):
-                    self.consume_requirements(r)
-                    return
-            # if none are met, do nothing
-            return
         # -------------------------
         # AND node
         # -------------------------
         if "and" in req:
             for r in req["and"]:
-                if self.meets_requirements(r):
-                    self.consume_requirements(r)
-                    return
-            # if none are met, do nothing
+                self.consume_requirements(r)
             return
         # -------------------------
         # OR node
         # -------------------------
         if "or" in req:
-            # pick the first sub-requirement that is met
+            # pick one satisfied sub-requirement at random and consume it
             options = list(req["or"])
             random.shuffle(options)
-
             for r in options:
-                self.consume_requirements(r)
+                if self.meets_requirements(r):
+                    self.consume_requirements(r)
+                    return
             return
 
         # -------------------------

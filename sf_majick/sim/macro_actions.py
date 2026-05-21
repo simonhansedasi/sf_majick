@@ -104,12 +104,6 @@ def attempt_close(entity, rep=None, accounts=None, opportunities=None):
         entity.stage = "Closed Lost"
         result = "lost"
         entity.mark_lost()
-    # optional: update commissions if Closed Won
-    if entity.stage == "Closed Won" and hasattr(entity, "revenue") and rep:
-        commission = CommissionPlan.commission_on(entity.revenue, rep.comp_rate)
-        rep.add_commission(commission)
-        entity.commission = commission
-
     return result
 
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=sf_majick org simulator GUI
+After=network.target
+
+[Service]
+User=simonhans
+WorkingDirectory=/home/simonhans/coding/sf_majick
+ExecStart=/usr/bin/python3 app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

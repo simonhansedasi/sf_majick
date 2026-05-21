@@ -144,6 +144,20 @@ class OrgConfig:
     stagnation_alpha: Optional[float] = None            # theta default: 0.008
 
     # ------------------------------------------------------------------
+    # Deal size (revenue distributions)
+    # These control the lognormal parameters used when generating lead and
+    # account revenues.  None = use the hardcoded entity defaults.
+    # ------------------------------------------------------------------
+
+    # Lead revenue: base * lognormal(mean=0, sigma)
+    lead_revenue_base:  Optional[float] = None   # default 50_000
+    lead_revenue_sigma: Optional[float] = None   # default 0.5
+
+    # Account annual revenue: lognormal(mean=mean_log, sigma=sigma_log)
+    account_revenue_mean_log:  Optional[float] = None   # default 15  (~$3.3M center)
+    account_revenue_sigma_log: Optional[float] = None   # default 1
+
+    # ------------------------------------------------------------------
     # Economics
     # ------------------------------------------------------------------
     # Commission tier overrides.  None = use CommissionPlan defaults.

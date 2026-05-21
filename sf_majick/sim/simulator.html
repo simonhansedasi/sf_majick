@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sf_majick — Org Simulator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede9;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #9c9a92;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 10px; --radius-sm: 6px;
+    --blue: #185FA5; --blue-bg: #E6F1FB;
+    --green: #1D9E75; --green-bg: #EAF3DE; --green-dark: #27500A;
+    --amber: #BA7517; --amber-bg: #FAEEDA; --amber-dark: #633806;
+    --red: #E24B4A; --red-bg: #FCEBEB; --red-dark: #791F1F;
+    --purple: #534AB7; --purple-bg: #EEEDFE; --purple-dark: #26215C;
+    --teal: #0F6E56; --teal-bg: #E1F5EE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #242422; --bg3: #2c2c2a;
+      --text: #e8e6de; --text2: #9c9a92; --text3: #6b6b67;
+      --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.20);
+      --blue: #85B7EB; --blue-bg: #042C53;
+      --green: #5DCAA5; --green-bg: #04342C; --green-dark: #9FE1CB;
+      --amber: #EF9F27; --amber-bg: #412402; --amber-dark: #FAC775;
+      --red: #F09595; --red-bg: #501313; --red-dark: #F7C1C1;
+      --purple: #AFA9EC; --purple-bg: #26215C; --purple-dark: #CECBF6;
+      --teal: #5DCAA5; --teal-bg: #04342C;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+  .app { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  header { margin-bottom: 20px; }
+  header h1 { font-size: 20px; font-weight: 500; }
+  header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+  .tabs { display: flex; border-bottom: 0.5px solid var(--border2); margin-bottom: 20px; gap: 2px; }
+  .tab { font-size: 13px; padding: 8px 16px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 500; }
+  .tab:hover:not(.active) { color: var(--text); }
+  .panel { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; }
+  .panel-title { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 700px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+  .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 12px; }
+  @media (max-width: 600px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
+  .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px; }
+  .metric .label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .metric .value { font-size: 22px; font-weight: 500; }
+  .metric .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .slider-label { font-size: 13px; color: var(--text2); width: 150px; flex-shrink: 0; }
+  .slider-val { font-size: 13px; font-weight: 500; min-width: 44px; text-align: right; }
+  input[type=range] { flex: 1; accent-color: var(--text); }
+  .btn { font-size: 13px; padding: 8px 16px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: background 0.15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: transparent; }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .badge { display: inline-flex; align-items: center; font-size: 12px; padding: 3px 9px; border-radius: 20px; margin: 2px; }
+  .badge-Closer   { background: var(--blue-bg);   color: var(--blue); }
+  .badge-Nurturer { background: var(--green-bg);  color: var(--green-dark); }
+  .badge-Grinder  { background: var(--amber-bg);  color: var(--amber-dark); }
+  .badge-Scattered{ background: var(--red-bg);    color: var(--red-dark); }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .bar-label { font-size: 12px; color: var(--text2); width: 100px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-val { font-size: 12px; color: var(--text3); min-width: 28px; text-align: right; }
+  .opp-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .opp-row:last-child { border-bottom: none; }
+  .stage-pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+  .s-Prospecting  { background: var(--blue-bg);   color: var(--blue); }
+  .s-Qualification{ background: var(--amber-bg);  color: var(--amber); }
+  .s-Proposal     { background: var(--green-bg);  color: var(--green); }
+  .s-Negotiation  { background: var(--purple-bg); color: var(--purple-dark); }
+  .s-ClosedWon    { background: var(--teal-bg);   color: var(--teal); }
+  .s-ClosedLost   { background: var(--red-bg);    color: var(--red); }
+  .fit-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .fit-row:last-child { border-bottom: none; }
+  .fit-key { color: var(--text2); }
+  .fit-vals { display: flex; gap: 18px; align-items: center; }
+  .fit-orig { color: var(--text3); font-size: 12px; }
+  .fit-fitted { font-weight: 500; }
+  .diff-up { color: var(--green-dark); }
+  .diff-dn { color: var(--red-dark); }
+  .diff-same { color: var(--text3); }
+  .rep-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .rep-id { font-size: 12px; color: var(--text2); }
+  .rep-stats { margin-left: auto; font-size: 12px; color: var(--text2); display: flex; gap: 12px; }
+  .stress-bar { width: 60px; height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+  .stress-fill { height: 100%; background: var(--amber); border-radius: 3px; }
+  pre { font-family: 'SFMono-Regular', 'Consolas', monospace; font-size: 12px; background: var(--bg2); border-radius: var(--radius-sm); padding: 14px; overflow: auto; max-height: 260px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+  .placeholder { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 14px; }
+  .note { font-size: 12px; color: var(--text3); margin-top: 10px; line-height: 1.5; }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+  .dot-green { background: var(--green); }
+  .dot-gray  { background: var(--text3); }
+  select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); cursor: pointer; }
+  .drop-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 20px; text-align: center; cursor: pointer; font-size: 13px; color: var(--text3); transition: border-color 0.15s, background 0.15s; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--text2); background: var(--bg2); color: var(--text2); }
+  .drop-zone.loaded { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
+  .map-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .map-label { font-size: 13px; color: var(--text2); width: 180px; flex-shrink: 0; }
+  .map-detected { font-size: 12px; color: var(--text3); }
+  .warn-row { font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--border); display: flex; gap: 8px; align-items: flex-start; }
+  .warn-row:last-child { border-bottom: none; }
+  .warn-icon { flex-shrink: 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <h1>sf_majick — org simulator</h1>
+        <p>Generate a random org, run the sim, then fit it with OrgCalibrator</p>
+      </div>
+      <button class="btn btn-primary" onclick="generateOrg()">↻ New random org</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('setup')">Setup</button>
+    <button class="tab" onclick="showTab('sim')">Simulation</button>
+    <button class="tab" onclick="showTab('fitter')">Org fitter</button>
+    <button class="tab" onclick="showTab('csv')">CSV import</button>
+  </div>
+
+  <!-- ===== SETUP ===== -->
+  <div id="tab-setup">
+
+    <div class="panel">
+      <div class="panel-title">Simulation control</div>
+      <div class="three-col">
+        <div class="slider-row"><span class="slider-label">Sim days</span><input type="range" id="s-days" min="30" max="365" value="90" step="5" oninput="sync(this,'v-days')"><span class="slider-val" id="v-days">90</span></div>
+        <div class="slider-row"><span class="slider-label">Seed accounts</span><input type="range" id="s-accts" min="2" max="60" value="10" step="1" oninput="sync(this,'v-accts')"><span class="slider-val" id="v-accts">10</span></div>
+        <div class="slider-row"><span class="slider-label">Seed leads</span><input type="range" id="s-leads" min="0" max="30" value="4" step="1" oninput="sync(this,'v-leads')"><span class="slider-val" id="v-leads">4</span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Team — rep count &amp; archetype mix</div>
+        <div class="slider-row"><span class="slider-label">Total reps</span><input type="range" id="s-nreps" min="1" max="40" value="8" step="1" oninput="sync(this,'v-nreps')"><span class="slider-val" id="v-nreps">8</span></div>
+        <div class="slider-row"><span class="slider-label">Closer %</span><input type="range" id="s-closer" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-closer','pct')"><span class="slider-val" id="v-closer">30%</span></div>
+        <div class="slider-row"><span class="slider-label">Nurturer %</span><input type="range" id="s-nurturer" min="0" max="1" value="0.25" step="0.05" oninput="sync(this,'v-nurturer','pct')"><span class="slider-val" id="v-nurturer">25%</span></div>
+        <div class="slider-row"><span class="slider-label">Grinder %</span><input type="range" id="s-grinder" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-grinder','pct')"><span class="slider-val" id="v-grinder">30%</span></div>
+        <div class="slider-row"><span class="slider-label">Scattered %</span><input type="range" id="s-scattered" min="0" max="1" value="0.15" step="0.05" oninput="sync(this,'v-scattered','pct')"><span class="slider-val" id="v-scattered">15%</span></div>
+        <div class="slider-row"><span class="slider-label">Comp rate</span><input type="range" id="s-comp" min="0.5" max="2.0" value="1.0" step="0.05" oninput="sync(this,'v-comp','x')"><span class="slider-val" id="v-comp">1.0×</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Account personality mix</div>
+        <div class="slider-row"><span class="slider-label">Analytical Skeptic</span><input type="range" id="s-skeptic" min="0" max="1" value="0.30" step="0.05" oninput="sync(this,'v-skeptic','pct')"><span class="slider-val" id="v-skeptic">30%</span></div>
+        <div class="slider-row"><span class="slider-label">Urgent Pragmatist</span><input type="range" id="s-urgent" min="0" max="1" value="0.40" step="0.05" oninput="sync(this,'v-urgent','pct')"><span class="slider-val" id="v-urgent">40%</span></div>
+        <div class="slider-row"><span class="slider-label">Price-Sensitive</span><input type="range" id="s-price" min="0" max="1" value="0.20" step="0.05" oninput="sync(this,'v-price','pct')"><span class="slider-val" id="v-price">20%</span></div>
+        <div class="slider-row"><span class="slider-label">Easy-Going Follower</span><input type="range" id="s-easy" min="0" max="1" value="0.10" step="0.05" oninput="sync(this,'v-easy','pct')"><span class="slider-val" id="v-easy">10%</span></div>
+        <p class="note" style="margin-top:10px;">Weights are normalised automatically — they don't need to sum to 100%.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Close &amp; lost probabilities</div>
+        <div class="slider-row"><span class="slider-label">Base close rate</span><input type="range" id="s-close" min="0.01" max="0.60" value="0.15" step="0.01" oninput="sync(this,'v-close','pct')"><span class="slider-val" id="v-close">15%</span></div>
+        <div class="slider-row"><span class="slider-label">Base lost rate (daily)</span><input type="range" id="s-lost" min="0.001" max="0.15" value="0.035" step="0.001" oninput="sync(this,'v-lost','pct2')"><span class="slider-val" id="v-lost">3.5%</span></div>
+        <div class="slider-row"><span class="slider-label">Inactivity alpha</span><input type="range" id="s-inactivity" min="0.001" max="0.05" value="0.010" step="0.001" oninput="sync(this,'v-inactivity','dec3')"><span class="slider-val" id="v-inactivity">0.010</span></div>
+        <div class="slider-row"><span class="slider-label">Stagnation alpha</span><input type="range" id="s-stagnation" min="0.001" max="0.05" value="0.008" step="0.001" oninput="sync(this,'v-stagnation','dec3')"><span class="slider-val" id="v-stagnation">0.008</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Stage advancement base probs</div>
+        <div class="slider-row"><span class="slider-label">Prospecting</span><input type="range" id="s-p-prosp" min="0.005" max="0.30" value="0.08" step="0.005" oninput="sync(this,'v-p-prosp','pct')"><span class="slider-val" id="v-p-prosp">8%</span></div>
+        <div class="slider-row"><span class="slider-label">Qualification</span><input type="range" id="s-p-qual" min="0.005" max="0.20" value="0.04" step="0.005" oninput="sync(this,'v-p-qual','pct')"><span class="slider-val" id="v-p-qual">4%</span></div>
+        <div class="slider-row"><span class="slider-label">Proposal</span><input type="range" id="s-p-prop" min="0.005" max="0.15" value="0.02" step="0.005" oninput="sync(this,'v-p-prop','pct')"><span class="slider-val" id="v-p-prop">2%</span></div>
+        <div class="slider-row"><span class="slider-label">Negotiation</span><input type="range" id="s-p-neg" min="0.002" max="0.10" value="0.01" step="0.002" oninput="sync(this,'v-p-neg','pct')"><span class="slider-val" id="v-p-neg">1%</span></div>
+        <div class="slider-row"><span class="slider-label">Lead conversion</span><input type="range" id="s-p-lead" min="0.01" max="0.60" value="0.25" step="0.01" oninput="sync(this,'v-p-lead','pct')"><span class="slider-val" id="v-p-lead">25%</span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Sentiment sensitivity</div>
+        <div class="slider-row"><span class="slider-label">Sentiment beta (opp)</span><input type="range" id="s-sent-opp" min="0.0" max="1.0" value="0.20" step="0.05" oninput="sync(this,'v-sent-opp','dec2')"><span class="slider-val" id="v-sent-opp">0.20</span></div>
+        <div class="slider-row"><span class="slider-label">Sentiment beta (lead)</span><input type="range" id="s-sent-lead" min="0.0" max="1.0" value="0.10" step="0.05" oninput="sync(this,'v-sent-lead','dec2')"><span class="slider-val" id="v-sent-lead">0.10</span></div>
+        <div class="slider-row"><span class="slider-label">Momentum beta (opp)</span><input type="range" id="s-mom-opp" min="0.0" max="2.0" value="0.75" step="0.05" oninput="sync(this,'v-mom-opp','dec2')"><span class="slider-val" id="v-mom-opp">0.75</span></div>
+        <div class="slider-row"><span class="slider-label">Friction beta (opp)</span><input type="range" id="s-fric-opp" min="0.0" max="2.0" value="0.50" step="0.05" oninput="sync(this,'v-fric-opp','dec2')"><span class="slider-val" id="v-fric-opp">0.50</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Deal economics</div>
+        <div class="slider-row"><span class="slider-label">Revenue log-mean (ln$)</span><input type="range" id="s-rev-mu" min="9" max="15" value="11.5" step="0.5" oninput="sync(this,'v-rev-mu','dec1')"><span class="slider-val" id="v-rev-mu">11.5</span></div>
+        <div class="slider-row"><span class="slider-label">Revenue log-sigma</span><input type="range" id="s-rev-sig" min="0.2" max="2.5" value="1.0" step="0.1" oninput="sync(this,'v-rev-sig','dec1')"><span class="slider-val" id="v-rev-sig">1.0</span></div>
+        <div class="slider-row"><span class="slider-label">Difficulty mean</span><input type="range" id="s-diff" min="0.01" max="0.20" value="0.06" step="0.01" oninput="sync(this,'v-diff','dec2')"><span class="slider-val" id="v-diff">0.06</span></div>
+        <div class="slider-row"><span class="slider-label">Commission rate</span><input type="range" id="s-comm-rate" min="0.02" max="0.20" value="0.08" step="0.01" oninput="sync(this,'v-comm-rate','pct')"><span class="slider-val" id="v-comm-rate">8%</span></div>
+        <p class="note" style="margin-top:8px;" id="rev-preview"></p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="randomizeAll()">↻ Roll random org</button>
+      <button class="btn btn-primary" onclick="runSim()">▶ Run simulation</button>
+      <button class="btn" onclick="resetDefaults()">Reset to defaults</button>
+    </div>
+  </div>
+
+  <!-- ===== SIM ===== -->
+  <div id="tab-sim" style="display:none">
+    <div id="sim-placeholder" class="placeholder">Configure the org in Setup, then click "Run simulation"</div>
+    <div id="sim-results" style="display:none">
+      <div class="metric-grid" id="sim-metrics"></div>
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title">Team</div>
+          <div id="rep-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Stage distribution</div>
+          <div id="stage-bars"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Pipeline — deal sample (up to 20)</div>
+        <div id="opp-table"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Daily activity log (last 20 days)</div>
+        <canvas id="activity-chart" style="width:100%;height:180px;display:block;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FITTER ===== -->
+  <div id="tab-fitter" style="display:none">
+    <div id="fitter-placeholder" class="placeholder">Run the simulation first, then fit the org</div>
+    <div id="fitter-content" style="display:none">
+      <div class="btn-row" style="margin-bottom:16px;">
+        <button class="btn btn-primary" onclick="fitOrg()">Fit org from sim data</button>
+        <span id="fit-status" style="font-size:13px;color:var(--text3);"></span>
+      </div>
+      <div id="fit-output" style="display:none">
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-title">Fitted OrgConfig — probability fields</div>
+            <div id="fit-fields"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Validation report</div>
+            <div id="fit-validation"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">OrgConfig JSON — copy into your project</div>
+          <pre id="fit-json"></pre>
+          <div class="btn-row">
+            <button class="btn" onclick="copyJson()">Copy JSON</button>
+            <button class="btn" onclick="downloadJson()">Download as .json</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Python snippet — load this config</div>
+          <pre id="fit-python"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== CSV IMPORT ===== -->
+  <div id="tab-csv" style="display:none">
+
+    <div class="panel">
+      <div class="panel-title">Salesforce CSV export — opportunities (required)</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">
+        Drop a CSV exported from Salesforce Opportunities. Column names are matched
+        case-insensitively and the most common SF API names are recognised automatically.
+        Only the opportunities file is required — the rest enrich the fit.
+      </p>
+      <div id="drop-opps" class="drop-zone" onclick="document.getElementById('f-opps').click()">
+        <input type="file" id="f-opps" accept=".csv" style="display:none" onchange="loadCsv('opps',this)">
+        <span id="drop-opps-label">Click or drop — Opportunities CSV</span>
+      </div>
+      <div id="opps-preview" style="display:none;margin-top:12px;">
+        <div id="opps-cols" style="margin-bottom:8px;"></div>
+        <div id="opps-col-map"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <div class="panel-title">Users CSV <span style="font-weight:400;color:var(--text3)">(optional — improves rep count)</span></div>
+        <div id="drop-users" class="drop-zone" onclick="document.getElementById('f-users').click()">
+          <input type="file" id="f-users" accept=".csv" style="display:none" onchange="loadCsv('users',this)">
+          <span id="drop-users-label">Click or drop — Users CSV</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Leads CSV <span style="font-weight:400;color:var(--text3)">(optional — enables lead conversion rate)</span></div>
+        <div id="drop-leads" class="drop-zone" onclick="document.getElementById('f-leads').click()">
+          <input type="file" id="f-leads" accept=".csv" style="display:none" onchange="loadCsv('leads',this)">
+          <span id="drop-leads-label">Click or drop — Leads CSV</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="col-mapping-panel" style="display:none">
+      <div class="panel-title">Column mapping — confirm or override</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">
+        Detected columns are shown below. If auto-detection missed something, pick the right column from the dropdown.
+      </p>
+      <div id="col-mapping-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;"></div>
+    </div>
+
+    <div id="csv-fit-row" style="display:none">
+      <div class="btn-row" style="margin-bottom:4px;">
+        <button class="btn btn-primary" onclick="fitFromCsv()">Fit org from CSV</button>
+        <span id="csv-fit-status" style="font-size:13px;color:var(--text3);"></span>
+      </div>
+    </div>
+
+    <div id="csv-fit-output" style="display:none">
+
+      <div class="panel">
+        <div class="panel-title">Data summary</div>
+        <div id="csv-data-summary" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title">Fitted parameters</div>
+          <div id="csv-fit-fields"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Observed distributions</div>
+          <div id="csv-fit-distributions"></div>
+          <canvas id="csv-stage-chart" style="width:100%;height:160px;display:block;margin-top:12px;"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Warnings &amp; coverage</div>
+        <div id="csv-warnings"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">OrgConfig JSON — copy into your project</div>
+        <pre id="csv-fit-json"></pre>
+        <div class="btn-row">
+          <button class="btn" onclick="copyCsvJson()">Copy JSON</button>
+          <button class="btn" onclick="downloadCsvJson()">Download as .json</button>
+          <button class="btn" onclick="loadCsvConfigIntoSetup()">Load into Setup tab →</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Python snippet</div>
+        <pre id="csv-fit-python"></pre>
+      </div>
+
+    </div>
+  </div>
+</div>
+// ============================================================
+// THETA DEFAULTS (mirrors theta.py)
+// ============================================================
+const THETA = {
+  base_prob_prospecting: 0.08, base_prob_qualification: 0.04,
+  base_prob_proposal: 0.02, base_prob_negotiation: 0.01,
+  base_prob_close: 0.15, base_prob_lost: 0.035,
+  base_prob_lead_conversion: 0.25,
+  inactivity_alpha: 0.010, stagnation_alpha: 0.008,
+  sentiment_beta_opportunity: 0.2, momentum_beta_opportunity: 0.75,
+  friction_beta_opportunity: 0.5, noise_sigma_opportunity: 0.05,
+  revenue_base: 1e7, revenue_exponent: 0.15
+};
+
+const STAGES = ['Prospecting','Qualification','Proposal','Negotiation','Closed Won','Closed Lost'];
+const ARCHETYPE_PROPS = {
+  Closer:    {aggression:0.85, empathy:0.25, discipline:0.75, burnout:90,  resilience:0.20, distraction:0.08},
+  Nurturer:  {aggression:0.20, empathy:0.90, discipline:0.60, burnout:70,  resilience:0.10, distraction:0.12},
+  Grinder:   {aggression:0.55, empathy:0.50, discipline:0.90, burnout:110, resilience:0.25, distraction:0.04},
+  Scattered: {aggression:0.50, empathy:0.50, discipline:0.20, burnout:60,  resilience:0.08, distraction:0.30},
+};
+const ACCOUNT_PERSONALITIES = [
+  {name:'Analytical Skeptic',    urgency:0.2, skepticism:0.8, price_sensitivity:0.5, openness:0.4},
+  {name:'Urgent Pragmatist',     urgency:0.8, skepticism:0.2, price_sensitivity:0.3, openness:0.7},
+  {name:'Price-Sensitive',       urgency:0.5, skepticism:0.5, price_sensitivity:0.9, openness:0.5},
+  {name:'Easy-Going Follower',   urgency:0.3, skepticism:0.2, price_sensitivity:0.2, openness:0.8},
+];
+const SENTIMENT_EFFECTS = {
+  send_email:0.05, make_call:0.08, hold_meeting:0.15, follow_up:0.10,
+  send_proposal:0.12, research_account:0.02, internal_prep:0.01,
+  solution_design:0.04, stakeholder_alignment:0.08
+};
+const ACTION_COSTS = {
+  send_email:15, make_call:15, research_account:25, internal_prep:25,
+  solution_design:35, hold_meeting:40, follow_up:30,
+  stakeholder_alignment:40, send_proposal:50
+};
+const STAGE_ADV_REQS = {
+  Prospecting:   {send_email:2, make_call:1},
+  Qualification: {send_email:4, make_call:3, hold_meeting:1},
+  Proposal:      {send_email:6, make_call:4, hold_meeting:2, follow_up:1},
+  Negotiation:   {send_email:8, make_call:6, hold_meeting:2, follow_up:2, send_proposal:1},
+};
+const STAGE_ORDER = ['Prospecting','Qualification','Proposal','Negotiation'];
+const STAGE_COLORS = {
+  Prospecting:'#378ADD', Qualification:'#BA7517', Proposal:'#1D9E75',
+  Negotiation:'#7F77DD', 'Closed Won':'#0F6E56', 'Closed Lost':'#E24B4A'
+};
+
+let simData = null;
+let fittedConfig = null;
+
+// ============================================================
+// UTILS
+// ============================================================
+function rand(a, b) { return a + Math.random() * (b - a); }
+function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lognorm(mu, sigma) {
+  const u = Math.random() + Math.random() + Math.random() - 1.5;
+  return Math.exp(mu + sigma * u * 1.732);
+}
+function fmtK(v) {
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return Math.round(v).toString();
+}
+function fmtPct(v, dec=1) { return (v * 100).toFixed(dec) + '%'; }
+
+// ============================================================
+// SLIDER SYNC
+// ============================================================
+function sync(el, valId, fmt) {
+  const v = parseFloat(el.value);
+  const sp = document.getElementById(valId);
+  if (!sp) return;
+  if      (fmt === 'pct')  sp.textContent = Math.round(v * 100) + '%';
+  else if (fmt === 'pct2') sp.textContent = (v * 100).toFixed(1) + '%';
+  else if (fmt === 'pct3') sp.textContent = (v * 100).toFixed(2) + '%';
+  else if (fmt === 'dec1') sp.textContent = v.toFixed(1);
+  else if (fmt === 'dec2') sp.textContent = v.toFixed(2);
+  else if (fmt === 'dec3') sp.textContent = v.toFixed(3);
+  else if (fmt === 'x')    sp.textContent = v.toFixed(2) + '×';
+  else                     sp.textContent = Math.round(v);
+  // live-update the deal size preview if a revenue slider changed
+  if (valId === 'v-rev-mu' || valId === 'v-rev-sig') updateRevPreview();
+}
+
+function setSlider(id, val, fmt) {
+  const el = document.getElementById('s-' + id);
+  if (!el) return;
+  el.value = val;
+  sync(el, 'v-' + id, fmt);
+}
+
+function updateRevPreview() {
+  const mu  = parseFloat(document.getElementById('s-rev-mu').value);
+  const sig = parseFloat(document.getElementById('s-rev-sig').value);
+  const p10 = Math.exp(mu + sig * -1.28);
+  const p50 = Math.exp(mu);
+  const p90 = Math.exp(mu + sig *  1.28);
+  const el = document.getElementById('rev-preview');
+  if (el) el.textContent = `p10 $${fmtK(p10)}  ·  median $${fmtK(p50)}  ·  p90 $${fmtK(p90)}`;
+}
+
+function getConfig() {
+  function val(id) { return parseFloat(document.getElementById('s-' + id).value); }
+  function ival(id) { return parseInt(document.getElementById('s-' + id).value); }
+  return {
+    n_reps:           ival('nreps'),
+    closer:           val('closer'),
+    nurturer:         val('nurturer'),
+    grinder:          val('grinder'),
+    scattered:        val('scattered'),
+    comp_rate:        val('comp'),
+    n_accounts:       ival('accts'),
+    n_leads:          ival('leads'),
+    days:             ival('days'),
+    base_prob_close:  val('close'),
+    base_prob_lost:   val('lost'),
+    inactivity_alpha: val('inactivity'),
+    stagnation_alpha: val('stagnation'),
+    base_prob_prospecting:   val('p-prosp'),
+    base_prob_qualification: val('p-qual'),
+    base_prob_proposal:      val('p-prop'),
+    base_prob_negotiation:   val('p-neg'),
+    base_prob_lead_conversion: val('p-lead'),
+    sentiment_beta_opportunity: val('sent-opp'),
+    sentiment_beta_lead:        val('sent-lead'),
+    momentum_beta_opportunity:  val('mom-opp'),
+    friction_beta_opportunity:  val('fric-opp'),
+    rev_mu:           val('rev-mu'),
+    rev_sigma:        val('rev-sig'),
+    difficulty_mean:  val('diff'),
+    commission_rate:  val('comm-rate'),
+    p_skeptic:        val('skeptic'),
+    p_urgent:         val('urgent'),
+    p_price:          val('price'),
+    p_easy:           val('easy'),
+  };
+}
+
+const DEFAULTS = {
+  nreps:9, closer:0.30, nurturer:0.25, grinder:0.30, scattered:0.15, comp:1.0,
+  accts:10, leads:4, days:90,
+  close:0.15, lost:0.035, inactivity:0.010, stagnation:0.008,
+  'p-prosp':0.08, 'p-qual':0.04, 'p-prop':0.02, 'p-neg':0.01, 'p-lead':0.25,
+  'sent-opp':0.20, 'sent-lead':0.10, 'mom-opp':0.75, 'fric-opp':0.50,
+  'rev-mu':10.82, 'rev-sig':0.8, diff:0.06, 'comm-rate':0.08,
+  skeptic:0.30, urgent:0.40, price:0.20, easy:0.10,
+};
+// rev-mu default: ln(50000) ≈ 10.82 → median deal $50K, sensible B2B default
+
+const DEFAULTS_FMT = {
+  closer:'pct', nurturer:'pct', grinder:'pct', scattered:'pct', comp:'x',
+  close:'pct', lost:'pct2', inactivity:'dec3', stagnation:'dec3',
+  'p-prosp':'pct', 'p-qual':'pct', 'p-prop':'pct', 'p-neg':'pct', 'p-lead':'pct',
+  'sent-opp':'dec2', 'sent-lead':'dec2', 'mom-opp':'dec2', 'fric-opp':'dec2',
+  'rev-mu':'dec1', 'rev-sig':'dec1', diff:'dec2', 'comm-rate':'pct',
+  skeptic:'pct', urgent:'pct', price:'pct', easy:'pct',
+};
+
+function resetDefaults() {
+  for (const [id, val] of Object.entries(DEFAULTS)) {
+    setSlider(id, val, DEFAULTS_FMT[id] || null);
+  }
+  updateRevPreview();
+}
+
+// ============================================================
+// RANDOMIZE
+// ============================================================
+function randomizeAll() {
+  const w = [Math.random(), Math.random(), Math.random(), Math.random()];
+  const tot = w.reduce((a,b) => a+b, 0);
+  const [c, n, g, s] = w.map(x => Math.round(x/tot*20)/20);
+  setSlider('nreps',    randInt(4, 18));
+  setSlider('closer',   clamp(c, 0, 0.95), 'pct');
+  setSlider('nurturer', clamp(n, 0, 0.95), 'pct');
+  setSlider('grinder',  clamp(g, 0, 0.95), 'pct');
+  setSlider('scattered',clamp(s, 0, 0.95), 'pct');
+  setSlider('comp',     +(Math.round(rand(0.8, 1.4)*20)/20).toFixed(2), 'x');
+  setSlider('accts',    randInt(5, 30));
+  setSlider('leads',    randInt(0, 15));
+  setSlider('days',     Math.round(rand(4, 24)) * 15);
+  setSlider('close',    +(Math.round(rand(0.08, 0.40)*100)/100).toFixed(2), 'pct');
+  setSlider('lost',     +(Math.round(rand(0.005, 0.08)*200)/200).toFixed(3), 'pct2');
+  setSlider('inactivity', +(Math.round(rand(0.003, 0.030)*1000)/1000).toFixed(3), 'dec3');
+  setSlider('stagnation', +(Math.round(rand(0.002, 0.025)*1000)/1000).toFixed(3), 'dec3');
+  setSlider('p-prosp',  +(Math.round(rand(0.02, 0.18)*200)/200).toFixed(3), 'pct');
+  setSlider('p-qual',   +(Math.round(rand(0.01, 0.12)*200)/200).toFixed(3), 'pct');
+  setSlider('p-prop',   +(Math.round(rand(0.005, 0.08)*200)/200).toFixed(3), 'pct');
+  setSlider('p-neg',    +(Math.round(rand(0.002, 0.05)*200)/200).toFixed(3), 'pct');
+  setSlider('p-lead',   +(Math.round(rand(0.05, 0.50)*100)/100).toFixed(2), 'pct');
+  setSlider('sent-opp', +(Math.round(rand(0.05, 0.60)*20)/20).toFixed(2), 'dec2');
+  setSlider('sent-lead',+(Math.round(rand(0.02, 0.40)*20)/20).toFixed(2), 'dec2');
+  setSlider('mom-opp',  +(Math.round(rand(0.20, 1.50)*20)/20).toFixed(2), 'dec2');
+  setSlider('fric-opp', +(Math.round(rand(0.10, 1.20)*20)/20).toFixed(2), 'dec2');
+  // Revenue: keep median in a sensible B2B range ($10K – $500K)
+  const muOptions = [9.21, 10.13, 10.82, 11.51, 12.21]; // $10K $25K $50K $100K $200K medians
+  setSlider('rev-mu',   muOptions[randInt(0, muOptions.length-1)], 'dec1');
+  setSlider('rev-sig',  +(Math.round(rand(0.4, 1.6)*10)/10).toFixed(1), 'dec1');
+  setSlider('diff',     +(Math.round(rand(0.02, 0.14)*100)/100).toFixed(2), 'dec2');
+  setSlider('comm-rate',+(Math.round(rand(0.04, 0.15)*100)/100).toFixed(2), 'pct');
+  const pw = [Math.random(),Math.random(),Math.random(),Math.random()];
+  const pt = pw.reduce((a,b)=>a+b,0);
+  setSlider('skeptic', clamp(Math.round(pw[0]/pt*20)/20, 0, 0.9), 'pct');
+  setSlider('urgent',  clamp(Math.round(pw[1]/pt*20)/20, 0, 0.9), 'pct');
+  setSlider('price',   clamp(Math.round(pw[2]/pt*20)/20, 0, 0.9), 'pct');
+  setSlider('easy',    clamp(Math.round(pw[3]/pt*20)/20, 0, 0.9), 'pct');
+  updateRevPreview();
+}
+
+function generateOrg() { randomizeAll(); showTab('setup'); }
+
+// ============================================================
+// SIMULATION ENGINE
+// ============================================================
+function pickWeighted(weights) {
+  const tot = weights.reduce((a,b) => a+b, 0) || 1;
+  let r = Math.random() * tot, cum = 0;
+  for (let i = 0; i < weights.length; i++) {
+    cum += weights[i];
+    if (r <= cum) return i;
+  }
+  return weights.length - 1;
+}
+
+function simulateOrg(cfg) {
+  const theta = {
+    ...THETA,
+    base_prob_close:             cfg.base_prob_close,
+    base_prob_lost:              cfg.base_prob_lost,
+    base_prob_prospecting:       cfg.base_prob_prospecting,
+    base_prob_qualification:     cfg.base_prob_qualification,
+    base_prob_proposal:          cfg.base_prob_proposal,
+    base_prob_negotiation:       cfg.base_prob_negotiation,
+    base_prob_lead_conversion:   cfg.base_prob_lead_conversion,
+    inactivity_alpha:            cfg.inactivity_alpha,
+    stagnation_alpha:            cfg.stagnation_alpha,
+    sentiment_beta_opportunity:  cfg.sentiment_beta_opportunity,
+    momentum_beta_opportunity:   cfg.momentum_beta_opportunity,
+    friction_beta_opportunity:   cfg.friction_beta_opportunity,
+  };
+
+  // Build reps
+  const archWeights = [cfg.closer, cfg.nurturer, cfg.grinder, cfg.scattered];
+  const archNames   = ['Closer', 'Nurturer', 'Grinder', 'Scattered'];
+  const reps = Array.from({length: cfg.n_reps}, (_, i) => {
+    const arch = archNames[pickWeighted(archWeights)];
+    const props = ARCHETYPE_PROPS[arch];
+    return { id:`rep_${i}`, arch, earnings:0, stress:0, motivation:1.0,
+             wins:0, losses:0, days_burned_out:0, lifetime_actions:0,
+             comp_rate: cfg.comp_rate, ...props };
+  });
+
+  // Build accounts + opps
+  const accPerWeights = [cfg.p_skeptic, cfg.p_urgent, cfg.p_price, cfg.p_easy];
+  function mkOpp(i, repId) {
+    // Revenue drawn from lognormal with user-controlled mu and sigma.
+    // mu = ln(median deal size), so rev-mu=10.82 → median ~$50K.
+    // No extra multiplier — the log-space parameters already determine the scale.
+    const rev  = lognorm(cfg.rev_mu, cfg.rev_sigma);
+    const diff = clamp(Math.random() * cfg.difficulty_mean * 2, 0.005, cfg.difficulty_mean * 3);
+    const pIdx = pickWeighted(accPerWeights);
+    const pers = ACCOUNT_PERSONALITIES[pIdx];
+    return {
+      id:`opp_${i}`, name:`Account_${i}`, rep_id:repId, stage:'Prospecting',
+      revenue:rev, difficulty:diff,
+      sentiment: (Math.random()-0.5)*0.4,
+      sentiment_history:[], days_in_stage:0, days_since_touch:0,
+      touched_today:false, is_closed:false,
+      micro: Object.fromEntries(Object.keys(SENTIMENT_EFFECTS).map(k=>[k,0])),
+      personality:pers.name, urgency:pers.urgency, skepticism:pers.skepticism,
+      price_sensitivity:pers.price_sensitivity,
+      close_day:null, outcome:null
+    };
+  }
+  const opps = Array.from({length: cfg.n_accounts}, (_, i) => mkOpp(i, reps[i % reps.length].id));
+
+  function meetsReqs(opp, stage) {
+    const reqs = STAGE_ADV_REQS[stage] || {};
+    return Object.entries(reqs).every(([a,n]) => (opp.micro[a]||0) >= n);
+  }
+
+  const dayStats = [];
+  const allActions = Object.keys(SENTIMENT_EFFECTS);
+
+  for (let day = 0; day < cfg.days; day++) {
+    let dayActs = 0, dayWon = 0, dayLost = 0, dayAdv = 0;
+
+    for (const rep of reps) {
+      // Decay stress
+      rep.stress = Math.max(0, rep.stress - rep.resilience * 4);
+      const isBurning = rep.stress >= rep.burnout;
+      if (isBurning) rep.days_burned_out++;
+
+      let attn = isBurning ? 160 : 360;
+      attn = Math.floor(attn * (0.60 + 0.40 * rep.motivation));
+      if (Math.random() < rep.distraction) attn -= randInt(30, 80);
+
+      const myOpps = opps.filter(o => o.rep_id === rep.id && !o.is_closed);
+      if (!myOpps.length) continue;
+
+      const nWork = Math.min(myOpps.length, Math.max(1, Math.floor(attn/110)));
+      // Prioritize later stages
+      myOpps.sort((a,b) => STAGE_ORDER.indexOf(b.stage) - STAGE_ORDER.indexOf(a.stage));
+      const worked = myOpps.slice(0, nWork);
+
+      for (const opp of worked) {
+        opp.touched_today = true;
+        opp.days_since_touch = 0;
+
+        let oppAttn = Math.floor(attn / worked.length);
+        const nActs = randInt(2, 5);
+        for (let ai = 0; ai < nActs && oppAttn > 15; ai++) {
+          // Personality-biased action selection
+          const actionWeights = allActions.map(a => {
+            let w = 1.0;
+            if (['make_call','hold_meeting','send_proposal','stakeholder_alignment'].includes(a)) w *= 1 + rep.aggression;
+            if (['send_email','follow_up','internal_prep'].includes(a)) w *= 1 + rep.empathy;
+            if (['research_account','internal_prep','solution_design'].includes(a)) w *= 1 + rep.discipline;
+            if (rep.discipline < 0.35 && ['send_email','make_call'].includes(a)) w *= 1.5;
+            return w;
+          });
+          const action = allActions[pickWeighted(actionWeights)];
+          const cost = ACTION_COSTS[action] || 20;
+          if (oppAttn < cost) continue;
+
+          // Aggression short-circuit
+          if (['internal_prep','research_account','solution_design'].includes(action)
+              && rep.aggression > 0.70 && Math.random() < (rep.aggression - 0.70)) continue;
+
+          oppAttn -= cost;
+          opp.micro[action]++;
+          rep.lifetime_actions++;
+          dayActs++;
+
+          // Sentiment delta
+          let delta = (SENTIMENT_EFFECTS[action] || 0.05) * (0.4 + Math.random() * 0.8);
+          delta *= 1 + opp.urgency * 0.25 - opp.skepticism * 0.15 - opp.price_sensitivity * 0.05;
+          if (rep.arch === 'Closer'   && ['hold_meeting','send_proposal'].includes(action)) delta *= 1.3;
+          if (rep.arch === 'Nurturer' && ['follow_up','send_email','hold_meeting'].includes(action)) delta *= 1.2;
+          if (rep.arch === 'Grinder') delta *= 1.05;
+          opp.sentiment = clamp(opp.sentiment + delta, -5, 5);
+          opp.sentiment_history.push(delta);
+        }
+
+        // Empathy bonus touch
+        if (rep.empathy > 0.75 && Math.random() < (rep.empathy - 0.75) && oppAttn > 30) {
+          opp.micro['follow_up'] = (opp.micro['follow_up']||0) + 1;
+          opp.sentiment = clamp(opp.sentiment + 0.08, -5, 5);
+        }
+
+        // Stage advancement
+        const idx = STAGE_ORDER.indexOf(opp.stage);
+        if (idx >= 0 && idx < STAGE_ORDER.length - 1) {
+          const nextStage = STAGE_ORDER[idx + 1];
+          if (meetsReqs(opp, nextStage)) {
+            const stageBase = [theta.base_prob_prospecting, theta.base_prob_qualification,
+                               theta.base_prob_proposal, theta.base_prob_negotiation][idx];
+            const momentum = opp.sentiment_history.slice(-5).reduce((a,b)=>a+b,0)/5;
+            const friction = Math.max(0, -(opp.sentiment_history.slice(-5).reduce((a,b)=>a+b,0)/5));
+            const diffScaled = opp.difficulty * Math.pow(opp.revenue / theta.revenue_base, theta.revenue_exponent);
+            const p = clamp(stageBase
+                            + momentum  * theta.momentum_beta_opportunity * 0.35
+                            - friction  * theta.friction_beta_opportunity * 0.35
+                            + opp.sentiment * theta.sentiment_beta_opportunity * 0.5
+                            - diffScaled, 0.005, 0.50);
+            if (Math.random() < p) {
+              opp.stage = nextStage;
+              opp.days_in_stage = 0;
+              dayAdv++;
+            }
+          }
+        }
+
+        // Close check (Negotiation only)
+        if (opp.stage === 'Negotiation' && meetsReqs(opp, 'Negotiation')) {
+          const momentum = opp.sentiment_history.slice(-5).reduce((a,b)=>a+b,0)/5;
+          const friction = Math.max(0, -(opp.sentiment_history.slice(-5).reduce((a,b)=>a+b,0)/5));
+          const diffScaled = opp.difficulty * Math.pow(opp.revenue / theta.revenue_base, 0.05);
+          const pClose = clamp(theta.base_prob_close
+                               + momentum * theta.momentum_beta_opportunity * 0.40
+                               - friction * theta.friction_beta_opportunity * 0.30
+                               + opp.sentiment * theta.sentiment_beta_opportunity * 0.30
+                               - diffScaled, 0.005, 0.70);
+          if (Math.random() < pClose) {
+            opp.stage = 'Closed Won'; opp.is_closed = true;
+            opp.close_day = day; opp.outcome = 'won';
+            const archBonus = rep.arch === 'Closer' ? 1.15 : 1.0;
+            const commission = opp.revenue * cfg.commission_rate * rep.comp_rate * archBonus;
+            rep.earnings += commission; rep.wins++;
+            rep.motivation = Math.min(1.0, rep.motivation + 0.18);
+            rep.stress = Math.max(0, rep.stress - 4);
+            dayWon++;
+            continue;
+          }
+        }
+
+        // Lost check
+        const pLost = clamp(
+          theta.base_prob_lost
+          + theta.inactivity_alpha * Math.log1p(opp.days_since_touch)
+          + theta.stagnation_alpha * Math.log1p(opp.days_in_stage),
+          0, 0.35
+        );
+        if (Math.random() < pLost) {
+          opp.stage = 'Closed Lost'; opp.is_closed = true;
+          opp.close_day = day; opp.outcome = 'lost';
+          rep.losses++; rep.motivation = Math.max(0.1, rep.motivation - 0.05);
+          rep.stress += 2.5;
+          dayLost++;
+        }
+      }
+
+      // Tick untouched
+      for (const opp of myOpps) {
+        if (!opp.touched_today && !opp.is_closed) {
+          opp.days_since_touch++;
+          opp.days_in_stage++;
+        }
+        opp.touched_today = false;
+      }
+
+      // Daily rep stress accumulation
+      const workloadStress = 0.4 * dayActs / Math.max(worked.length, 1);
+      rep.stress = Math.min(rep.stress + workloadStress, 200);
+      rep.consecutive_no_close_days = (rep.consecutive_no_close_days || 0) + (dayWon ? 0 : 1);
+      if (rep.consecutive_no_close_days > 14) {
+        rep.motivation = Math.max(0.1, rep.motivation - 0.01);
+      }
+    }
+
+    dayStats.push({day, actions:dayActs, advanced:dayAdv, won:dayWon, lost:dayLost});
+  }
+
+  // Compile
+  const closed = opps.filter(o => o.is_closed);
+  const won    = closed.filter(o => o.outcome === 'won');
+  const lost   = closed.filter(o => o.outcome === 'lost');
+  const wonRevenue  = won.reduce((s,o) => s + o.revenue, 0);
+  const stageCount  = Object.fromEntries(STAGES.map(s => [s, opps.filter(o => o.stage === s).length]));
+  const avgCycleDays = won.length ? won.reduce((s,o)=>s+(o.close_day||0),0)/won.length : null;
+  const avgDealSize  = won.length ? wonRevenue / won.length : null;
+  const winRate      = closed.length ? won.length / closed.length : null;
+  const totalRevenue = wonRevenue;
+  const totalActions = dayStats.reduce((s,d)=>s+d.actions,0);
+
+  return { cfg, reps, opps, stageCount, won, lost, closed,
+           wonRevenue, winRate, avgCycleDays, avgDealSize, dayStats,
+           totalRevenue, totalActions };
+}
+
+// ============================================================
+// RENDER SIM RESULTS
+// ============================================================
+function runSim() {
+  const cfg = getConfig();
+  simData = simulateOrg(cfg);
+  renderSimResults(simData);
+  document.getElementById('fitter-placeholder').style.display = 'none';
+  document.getElementById('fitter-content').style.display = 'block';
+  document.getElementById('fit-output').style.display = 'none';
+  document.getElementById('fit-status').textContent = '';
+  showTab('sim');
+}
+
+function renderSimResults(d) {
+  document.getElementById('sim-placeholder').style.display = 'none';
+  document.getElementById('sim-results').style.display = 'block';
+
+  // Metrics
+  document.getElementById('sim-metrics').innerHTML = [
+    {label:'Closed won',   value: d.won.length,                                    sub:`of ${d.opps.length} opps`},
+    {label:'Win rate',     value: d.winRate!=null ? fmtPct(d.winRate,0) : 'n/a',   sub:`${d.closed.length} closed`},
+    {label:'Won revenue',  value: d.wonRevenue>0 ? '$'+fmtK(d.wonRevenue) : '$0',  sub:'total'},
+    {label:'Avg cycle',    value: d.avgCycleDays!=null ? Math.round(d.avgCycleDays)+'d' : 'n/a', sub:'days to close'},
+  ].map(m => `<div class="metric"><div class="label">${m.label}</div><div class="value">${m.value}</div><div class="sub">${m.sub}</div></div>`).join('');
+
+  // Rep list
+  document.getElementById('rep-list').innerHTML = d.reps.map(r => {
+    const burnPct = Math.min(100, (r.stress / r.burnout) * 100);
+    return `<div class="rep-row">
+      <span class="badge badge-${r.arch}">${r.arch}</span>
+      <span class="rep-id">${r.id}</span>
+      <div class="rep-stats">
+        <span>W:${r.wins} L:${r.losses}</span>
+        <span title="Stress ${burnPct.toFixed(0)}%">
+          <div class="stress-bar"><div class="stress-fill" style="width:${burnPct.toFixed(0)}%"></div></div>
+        </span>
+        <span>$${fmtK(r.earnings)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Stage bars
+  const total = d.opps.length || 1;
+  document.getElementById('stage-bars').innerHTML = STAGES.map(s => {
+    const n = d.stageCount[s] || 0;
+    const pct = (n/total*100).toFixed(0);
+    return `<div class="bar-row">
+      <span class="bar-label">${s}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${STAGE_COLORS[s]}"></div></div>
+      <span class="bar-val">${n}</span>
+    </div>`;
+  }).join('');
+
+  // Opp table
+  const sample = [...d.opps].sort(()=>Math.random()-0.5).slice(0,20);
+  document.getElementById('opp-table').innerHTML = sample.map(o => {
+    const key = o.stage.replace(/ /g,'');
+    const sentClass = o.sentiment > 0.1 ? 'color:var(--green)' : o.sentiment < -0.1 ? 'color:var(--red)' : 'color:var(--text3)';
+    return `<div class="opp-row">
+      <span style="flex:1">${o.name}</span>
+      <span class="badge badge-${o.arch || 'Closer'}" style="font-size:10px;padding:2px 6px;">${(o.personality||'').split(' ')[0]}</span>
+      <span class="stage-pill s-${key}">${o.stage}</span>
+      <span style="width:72px;text-align:right;color:var(--text2)">$${fmtK(o.revenue)}</span>
+      <span style="width:52px;text-align:right;font-size:12px;${sentClass}">s:${o.sentiment.toFixed(2)}</span>
+    </div>`;
+  }).join('');
+
+  // Activity chart (canvas bar chart)
+  drawActivityChart(d.dayStats);
+}
+
+function drawActivityChart(dayStats) {
+  const canvas = document.getElementById('activity-chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 600;
+  const H = 180;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+
+  const recent = dayStats.slice(-30);
+  const maxActs = Math.max(...recent.map(d=>d.actions), 1);
+  const barW = (W - 40) / recent.length;
+
+  // Background
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.clearRect(0, 0, W, H);
+
+  recent.forEach((d, i) => {
+    const x = 30 + i * barW;
+    const barH = ((d.actions / maxActs) * (H - 40));
+    ctx.fillStyle = isDark ? 'rgba(150,140,120,0.25)' : 'rgba(60,60,50,0.12)';
+    ctx.beginPath(); ctx.roundRect(x+1, H-20-barH, barW-3, barH, 2); ctx.fill();
+    if (d.won > 0) {
+      ctx.fillStyle = '#1D9E75';
+      ctx.beginPath(); ctx.arc(x + barW/2, H-22-barH, 3, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  // Axes
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(28, 10); ctx.lineTo(28, H-18); ctx.lineTo(W-2, H-18); ctx.stroke();
+  ctx.fillStyle = isDark ? 'rgba(200,190,170,0.5)' : 'rgba(80,80,70,0.5)';
+  ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Daily actions (last 30 days) — green dot = close won', W/2, H-4);
+}
+
+// ============================================================
+// ORG FITTER (mirrors OrgCalibrator.calibrate())
+// ============================================================
+function fitOrg() {
+  if (!simData) return;
+  document.getElementById('fit-status').textContent = 'Fitting…';
+  setTimeout(() => {
+    fittedConfig = calibrate(simData);
+    renderFitResults(simData, fittedConfig);
+    document.getElementById('fit-status').textContent = 'Done';
+  }, 250);
+}
+
+function calibrate(d) {
+  const opps = d.opps;
+  const cfg  = d.cfg;
+
+  // Win rate → base_prob_close
+  const base_prob_close = d.winRate != null ? +clamp(d.winRate, 0.01, 0.60).toFixed(4) : null;
+
+  // Lost rate → daily hazard (mirroring OrgCalibrator._compute_conversion_rates)
+  const lostRate = opps.length > 0 ? d.lost.length / opps.length : null;
+  const avgCycle = d.avgCycleDays || 60;
+  const base_prob_lost = lostRate != null ? +clamp(lostRate / Math.max(avgCycle, 1), 0.001, 0.10).toFixed(5) : null;
+
+  // Stage advancement rates (fraction of opps that advanced past each stage)
+  function stageAdvRate(stage) {
+    const stageIdx = STAGE_ORDER.indexOf(stage);
+    const pastThis = opps.filter(o => {
+      const oIdx = STAGE_ORDER.indexOf(o.stage);
+      const finalIdx = o.is_closed && o.outcome === 'won' ? STAGE_ORDER.length : oIdx;
+      return finalIdx > stageIdx;
+    }).length;
+    const total = opps.filter(o => STAGE_ORDER.indexOf(o.stage) >= stageIdx || (o.is_closed && o.outcome === 'won')).length;
+    return total > 0 ? pastThis / total : null;
+  }
+
+  function rateToDaily(stage, rate) {
+    if (rate == null) return null;
+    const avgDays = {Prospecting:25, Qualification:20, Proposal:15, Negotiation:12}[stage] || 20;
+    return +clamp(rate / Math.max(avgDays, 1), 0.001, 0.30).toFixed(4);
+  }
+
+  // Cycle time → inactivity/stagnation alphas
+  const inactivity_alpha = +clamp(THETA.inactivity_alpha * (45 / Math.max(avgCycle, 10)), 0.002, 0.025).toFixed(5);
+  const stagnation_alpha = +clamp(THETA.stagnation_alpha * (45 / Math.max(avgCycle, 10)), 0.001, 0.020).toFixed(5);
+
+  // Archetype distribution
+  const archCounts = {};
+  for (const r of d.reps) archCounts[r.arch] = (archCounts[r.arch] || 0) + 1;
+  const archetype_weights = {};
+  for (const [k,v] of Object.entries(archCounts)) archetype_weights[k] = +(v / d.reps.length).toFixed(2);
+
+  // Account personality distribution (observed from opps)
+  const persCounts = {};
+  for (const o of opps) persCounts[o.personality] = (persCounts[o.personality]||0)+1;
+  const account_personality_weights = {};
+  for (const [k,v] of Object.entries(persCounts)) account_personality_weights[k] = +(v/opps.length).toFixed(2);
+
+  const prospAdv = stageAdvRate('Prospecting');
+  const qualAdv  = stageAdvRate('Qualification');
+  const propAdv  = stageAdvRate('Proposal');
+
+  return {
+    label: 'fitted_from_sim',
+    n_reps: d.reps.length,
+    archetype_weights,
+    account_personality_weights,
+    n_seed_accounts: cfg.n_accounts,
+    n_seed_leads: cfg.n_leads,
+    days: cfg.days,
+    n_runs: 100,
+    base_prob_close,
+    base_prob_lost,
+    base_prob_prospecting:   rateToDaily('Prospecting', prospAdv),
+    base_prob_qualification: rateToDaily('Qualification', qualAdv),
+    base_prob_proposal:      rateToDaily('Proposal', propAdv),
+    inactivity_alpha,
+    stagnation_alpha,
+    apply_decay: true,
+    notes: `Auto-fitted from ${cfg.days}-day simulation. ${d.won.length} Closed Won, ${d.lost.length} Closed Lost out of ${opps.length} total opps.`,
+    _observed: {
+      win_rate:       d.winRate != null ? +(d.winRate*100).toFixed(1) : null,
+      avg_cycle_days: d.avgCycleDays != null ? +d.avgCycleDays.toFixed(1) : null,
+      avg_deal_size:  d.avgDealSize != null ? +d.avgDealSize.toFixed(0) : null,
+      total_actions:  d.totalActions,
+      stage_adv_rates: {
+        Prospecting:   prospAdv != null ? +(prospAdv*100).toFixed(1) : null,
+        Qualification: qualAdv  != null ? +(qualAdv *100).toFixed(1) : null,
+        Proposal:      propAdv  != null ? +(propAdv *100).toFixed(1) : null,
+      }
+    }
+  };
+}
+
+function renderFitResults(d, fitted) {
+  document.getElementById('fit-output').style.display = 'block';
+
+  const compareFields = [
+    {key:'base_prob_close',          label:'Close rate',          orig:d.cfg.base_prob_close, fmt:'pct'},
+    {key:'base_prob_lost',           label:'Lost rate (daily)',    orig:d.cfg.base_prob_lost,  fmt:'pct3'},
+    {key:'base_prob_prospecting',    label:'Prospecting adv.',     orig:THETA.base_prob_prospecting,   fmt:'pct'},
+    {key:'base_prob_qualification',  label:'Qualification adv.',   orig:THETA.base_prob_qualification, fmt:'pct'},
+    {key:'base_prob_proposal',       label:'Proposal adv.',        orig:THETA.base_prob_proposal,      fmt:'pct'},
+    {key:'inactivity_alpha',         label:'Inactivity alpha',     orig:THETA.inactivity_alpha,  fmt:'dec4'},
+    {key:'stagnation_alpha',         label:'Stagnation alpha',     orig:THETA.stagnation_alpha,  fmt:'dec4'},
+  ];
+
+  function fv(v, fmt) {
+    if (v == null) return '<span style="color:var(--text3)">n/a</span>';
+    if (fmt === 'pct')  return fmtPct(v);
+    if (fmt === 'pct3') return (v*100).toFixed(3)+'%';
+    if (fmt === 'dec4') return v.toFixed(4);
+    return String(v);
+  }
+
+  document.getElementById('fit-fields').innerHTML = compareFields.map(f => {
+    const fv_fitted = fitted[f.key];
+    const fv_orig   = f.orig;
+    let diffClass = 'diff-same';
+    if (fv_fitted != null && fv_orig != null) {
+      const diff = (fv_fitted - fv_orig) / Math.abs(fv_orig);
+      if (diff >  0.05) diffClass = 'diff-up';
+      if (diff < -0.05) diffClass = 'diff-dn';
+    }
+    return `<div class="fit-row">
+      <span class="fit-key">${f.label}</span>
+      <div class="fit-vals">
+        <span class="fit-orig">θ default: ${fv(fv_orig, f.fmt)}</span>
+        <span class="fit-fitted ${diffClass}">${fv(fv_fitted, f.fmt)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const obs = fitted._observed || {};
+  document.getElementById('fit-validation').innerHTML = `
+    <div class="fit-row"><span class="fit-key">Opps simulated</span><span class="fit-fitted">${d.opps.length}</span></div>
+    <div class="fit-row"><span class="fit-key">Closed won</span><span class="fit-fitted">${d.won.length}</span></div>
+    <div class="fit-row"><span class="fit-key">Closed lost</span><span class="fit-fitted">${d.lost.length}</span></div>
+    <div class="fit-row"><span class="fit-key">Still active</span><span class="fit-fitted">${d.opps.filter(o=>!o.is_closed).length}</span></div>
+    <div class="fit-row"><span class="fit-key">Observed win rate</span><span class="fit-fitted">${obs.win_rate!=null?obs.win_rate+'%':'n/a'}</span></div>
+    <div class="fit-row"><span class="fit-key">Avg cycle (won)</span><span class="fit-fitted">${obs.avg_cycle_days!=null?obs.avg_cycle_days+' days':'n/a'}</span></div>
+    <div class="fit-row"><span class="fit-key">Avg deal size (won)</span><span class="fit-fitted">${obs.avg_deal_size!=null?'$'+fmtK(obs.avg_deal_size):'n/a'}</span></div>
+    <div class="fit-row"><span class="fit-key">Total micro actions</span><span class="fit-fitted">${obs.total_actions?.toLocaleString()??'—'}</span></div>
+    <div class="fit-row"><span class="fit-key">Prospecting → adv.</span><span class="fit-fitted">${obs.stage_adv_rates?.Prospecting!=null?obs.stage_adv_rates.Prospecting+'%':'n/a'}</span></div>
+    <div class="fit-row"><span class="fit-key">Qualification → adv.</span><span class="fit-fitted">${obs.stage_adv_rates?.Qualification!=null?obs.stage_adv_rates.Qualification+'%':'n/a'}</span></div>
+    <div class="fit-row"><span class="fit-key">Proposal → adv.</span><span class="fit-fitted">${obs.stage_adv_rates?.Proposal!=null?obs.stage_adv_rates.Proposal+'%':'n/a'}</span></div>
+    <p class="note">${fitted.notes}</p>
+  `;
+
+  // JSON (exclude _observed from the clean export)
+  const cleanConfig = {...fitted};
+  delete cleanConfig._observed;
+  document.getElementById('fit-json').textContent = JSON.stringify(cleanConfig, null, 2);
+
+  // Python snippet
+  document.getElementById('fit-python').textContent = `from sf_majick.sim.org_config import OrgConfig
+from sf_majick.sim.org_calibrator import ExperimentRunner, build_state_from_config
+from sf_majick.sim.simulate import run_simulation
+from sf_majick.sim.micro_policy import simulate_rep_thinking
+
+cfg = OrgConfig.load("fitted_config.json")
+# — or — cfg = OrgConfig.from_dict(${JSON.stringify(cleanConfig, null, 2)})
+
+runner = ExperimentRunner(
+    base_config   = cfg,
+    state_factory = build_state_from_config,
+    sim_fn        = run_simulation,
+    micro_policy  = simulate_rep_thinking,
+    n_iterations  = 200,
+)
+
+results = runner.compare({
+    "baseline":      {},
+    "hire_2_closers":{"n_reps": cfg.n_reps + 2},
+    "coaching":      {"base_prob_close": (cfg.base_prob_close or 0.15) + 0.05},
+})
+
+print(results.groupby("label")[["won_rate","revenue_per_run","avg_rep_earnings"]].mean())`;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function copyJson() {
+  const txt = document.getElementById('fit-json').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy JSON', 1500);
+  });
+}
+
+function downloadJson() {
+  const txt = document.getElementById('fit-json').textContent;
+  const blob = new Blob([txt], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'fitted_config.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function showTab(name) {
+  ['setup','sim','fitter','csv'].forEach((t, i) => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+    document.querySelectorAll('.tab')[i].classList.toggle('active', t===name);
+  });
+  if (name === 'sim' && simData) {
+    requestAnimationFrame(() => drawActivityChart(simData.dayStats));
+  }
+}
+
+// ============================================================
+// CSV IMPORT & CALIBRATOR
+// ============================================================
+
+const csvData = { opps: null, users: null, leads: null };
+let csvFitted = null;
+
+// --- SF column name aliases (mirrors OrgCalibrator normalisation) ---
+const COL_ALIASES = {
+  stage:       ['stagename', 'stage', 'stage_name'],
+  amount:      ['amount', 'amount__c', 'acv', 'arr', 'deal_value', 'revenue'],
+  close_date:  ['closedate', 'close_date', 'closed_date'],
+  created_date:['createddate', 'created_date', 'createdate'],
+  owner_id:    ['ownerid', 'owner_id', 'assigned_to', 'salesrep'],
+  account_id:  ['accountid', 'account_id'],
+  is_converted:['isconverted', 'is_converted', 'converted'],
+  id:          ['id', 'opportunityid', 'opp_id'],
+};
+
+const STAGE_MAP = {
+  'prospecting': 'Prospecting',
+  'qualification': 'Qualification',
+  'needs analysis': 'Qualification',
+  'value proposition': 'Proposal',
+  'id. decision makers': 'Proposal',
+  'perception analysis': 'Proposal',
+  'proposal/price quote': 'Proposal',
+  'proposal': 'Proposal',
+  'negotiation/review': 'Negotiation',
+  'negotiation': 'Negotiation',
+  'closed won': 'Closed Won',
+  'closed lost': 'Closed Lost',
+};
+
+// --- Simple CSV parser (handles quoted fields) ---
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase().trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = splitCsvLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (vals[i] || '').replace(/^"|"$/g,'').trim(); });
+    return row;
+  });
+}
+
+function splitCsvLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// --- Find best matching column ---
+function detectCol(headers, key) {
+  const aliases = COL_ALIASES[key] || [key];
+  for (const a of aliases) {
+    const match = headers.find(h => h === a || h.replace(/\s/g,'') === a.replace(/\s/g,''));
+    if (match) return match;
+  }
+  return null;
+}
+
+// --- Load CSV file ---
+function loadCsv(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCsv(e.target.result);
+    if (!rows.length) { alert('Could not parse CSV — check the file.'); return; }
+    csvData[type] = rows;
+    const label = document.getElementById(`drop-${type}-label`);
+    const zone  = document.getElementById(`drop-${type}`);
+    label.textContent = `✓ ${file.name} — ${rows.length.toLocaleString()} rows, ${Object.keys(rows[0]).length} columns`;
+    zone.classList.add('loaded');
+    if (type === 'opps') showOppsPreview(rows);
+    checkShowFitButton();
+  };
+  reader.readAsText(file);
+}
+
+// Drag-and-drop support
+['opps','users','leads'].forEach(type => {
+  const zone = document.getElementById(`drop-${type}`);
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const fakeInput = { files: [file] };
+    loadCsv(type, fakeInput);
+  });
+});
+
+function showOppsPreview(rows) {
+  const headers = Object.keys(rows[0]);
+  document.getElementById('opps-preview').style.display = 'block';
+
+  // Detected columns
+  const detected = {};
+  for (const key of Object.keys(COL_ALIASES)) {
+    detected[key] = detectCol(headers, key);
+  }
+
+  // Column mapping UI
+  const panel = document.getElementById('col-mapping-panel');
+  panel.style.display = 'block';
+  const grid = document.getElementById('col-mapping-grid');
+  const labels = {
+    stage: 'Stage column', amount: 'Deal amount column',
+    close_date: 'Close date column', created_date: 'Created date column',
+    owner_id: 'Owner/rep ID column', account_id: 'Account ID column',
+  };
+  const optionsHtml = ['(none)', ...headers].map(h => `<option value="${h}">${h}</option>`).join('');
+  grid.innerHTML = Object.entries(labels).map(([key, label]) => {
+    const det = detected[key] || '';
+    return `<div class="map-row">
+      <span class="map-label">${label}</span>
+      <select id="map-${key}" onchange="csvData._map=buildColMap()">
+        ${['(none)', ...headers].map(h => `<option value="${h}" ${h===det?'selected':''}>${h}</option>`).join('')}
+      </select>
+      ${det ? `<span class="map-detected">auto: ${det}</span>` : '<span class="map-detected" style="color:var(--amber)">not detected</span>'}
+    </div>`;
+  }).join('');
+
+  // Summary of detected columns
+  document.getElementById('opps-cols').innerHTML =
+    `<span style="font-size:12px;color:var(--text3);">${headers.length} columns detected: </span>` +
+    headers.map(h => `<span class="tag">${h}</span>`).join('');
+}
+
+function buildColMap() {
+  const keys = ['stage','amount','close_date','created_date','owner_id','account_id'];
+  const map = {};
+  for (const k of keys) {
+    const el = document.getElementById('map-' + k);
+    if (el && el.value !== '(none)') map[k] = el.value;
+  }
+  return map;
+}
+
+function checkShowFitButton() {
+  document.getElementById('csv-fit-row').style.display = csvData.opps ? 'block' : 'none';
+}
+
+// --- Core calibration logic (mirrors OrgCalibrator.calibrate()) ---
+function calibrateFromCsv() {
+  const opps = csvData.opps;
+  const users = csvData.users;
+  const leads = csvData.leads;
+  const colMap = buildColMap();
+  const warnings = [];
+
+  function col(row, key) {
+    const c = colMap[key];
+    return c ? row[c] : undefined;
+  }
+
+  // Normalise stage
+  const stageCol = colMap.stage;
+  const oppsWithStage = opps.map(r => ({
+    ...r,
+    _stage_sim: STAGE_MAP[(col(r,'stage')||'').toLowerCase().trim()] || null,
+    _amount: parseFloat(col(r,'amount')) || null,
+    _close_date: col(r,'close_date') ? new Date(col(r,'close_date')) : null,
+    _created_date: col(r,'created_date') ? new Date(col(r,'created_date')) : null,
+    _owner: col(r,'owner_id') || null,
+    _account: col(r,'account_id') || null,
+  }));
+
+  if (!stageCol) warnings.push({ level:'warn', msg: 'No stage column found — stage-based fitting will be skipped.' });
+
+  // ---- Team size ----
+  let n_reps = null;
+  if (users && users.length > 0) {
+    n_reps = users.length;
+  } else {
+    const owners = new Set(oppsWithStage.map(r => r._owner).filter(Boolean));
+    if (owners.size > 0) n_reps = owners.size;
+    else warnings.push({ level:'warn', msg: 'No owner/rep column — rep count not fitted, using default.' });
+  }
+
+  // ---- Accounts ----
+  const accounts = new Set(oppsWithStage.map(r => r._account).filter(Boolean));
+  const n_seed_accounts = accounts.size || oppsWithStage.length;
+
+  // ---- Conversion rates ----
+  const staged = oppsWithStage.filter(r => r._stage_sim);
+  const nTotal = staged.length || oppsWithStage.length;
+  const closed = staged.filter(r => r._stage_sim === 'Closed Won' || r._stage_sim === 'Closed Lost');
+  const nClosed = closed.length;
+  const nWon  = closed.filter(r => r._stage_sim === 'Closed Won').length;
+  const nLost = closed.filter(r => r._stage_sim === 'Closed Lost').length;
+
+  if (!staged.length) warnings.push({ level:'error', msg: 'Stage column found but no rows matched known SF stage names. Check the stage map or your column selection.' });
+
+  const win_rate  = nClosed > 0 ? nWon  / nClosed : null;
+  const lost_rate = nClosed > 0 ? nLost / nClosed : null;
+  const base_prob_close = win_rate != null ? +clamp(win_rate, 0.01, 0.60).toFixed(4) : null;
+
+  if (nClosed < 10) warnings.push({ level:'warn', msg: `Only ${nClosed} closed deals — win rate estimate may be unreliable. Need at least 10–20 for a stable fit.` });
+
+  // ---- Cycle time ----
+  const cycleRows = oppsWithStage.filter(r => r._close_date && r._created_date && r._close_date > r._created_date);
+  let avg_cycle = null;
+  if (cycleRows.length > 0) {
+    const days = cycleRows.map(r => (r._close_date - r._created_date) / 86400000).filter(d => d > 0);
+    days.sort((a,b) => a-b);
+    avg_cycle = days[Math.floor(days.length/2)]; // median
+  } else {
+    warnings.push({ level:'warn', msg: 'No close_date / created_date columns — cycle time not fitted, inactivity/stagnation alphas use defaults.' });
+  }
+
+  const base_prob_lost = (lost_rate != null && avg_cycle)
+    ? +clamp(lost_rate / Math.max(avg_cycle, 1), 0.001, 0.10).toFixed(5)
+    : null;
+
+  const inactivity_alpha = avg_cycle ? +clamp(0.010 * (45 / Math.max(avg_cycle, 10)), 0.002, 0.025).toFixed(5) : null;
+  const stagnation_alpha = avg_cycle ? +clamp(0.008 * (45 / Math.max(avg_cycle, 10)), 0.001, 0.020).toFixed(5) : null;
+
+  // ---- Stage advancement rates ----
+  const STAGE_ORDER = ['Prospecting','Qualification','Proposal','Negotiation'];
+  const stageCounts = {};
+  for (const s of [...STAGE_ORDER, 'Closed Won', 'Closed Lost']) {
+    stageCounts[s] = staged.filter(r => r._stage_sim === s).length;
+  }
+  // Include Closed Won as having "passed" all stages
+  const wonCount = stageCounts['Closed Won'] || 0;
+
+  function advRate(stage) {
+    const idx = STAGE_ORDER.indexOf(stage);
+    if (idx < 0) return null;
+    // Opps "at or past" this stage = at this stage + all later stages + closed won/lost
+    const atOrPast = staged.filter(r => {
+      const ri = STAGE_ORDER.indexOf(r._stage_sim);
+      return ri >= idx || r._stage_sim === 'Closed Won' || r._stage_sim === 'Closed Lost';
+    }).length;
+    const past = staged.filter(r => {
+      const ri = STAGE_ORDER.indexOf(r._stage_sim);
+      return ri > idx || r._stage_sim === 'Closed Won' || r._stage_sim === 'Closed Lost';
+    }).length;
+    return atOrPast > 0 ? past / atOrPast : null;
+  }
+
+  const avgDaysPerStage = { Prospecting:25, Qualification:20, Proposal:15, Negotiation:12 };
+  function rateToDaily(stage, rate) {
+    if (rate == null) return null;
+    return +clamp(rate / avgDaysPerStage[stage], 0.001, 0.30).toFixed(4);
+  }
+
+  const prospAdv = advRate('Prospecting');
+  const qualAdv  = advRate('Qualification');
+  const propAdv  = advRate('Proposal');
+  const negAdv   = advRate('Negotiation');
+
+  // ---- Deal size → revenue lognormal params ----
+  const amounts = oppsWithStage.map(r => r._amount).filter(a => a && a > 0);
+  let rev_mu = null, rev_sigma = null, dealStats = null;
+  if (amounts.length > 5) {
+    const logAmts = amounts.map(a => Math.log(a));
+    const mu = logAmts.reduce((s,v)=>s+v,0) / logAmts.length;
+    const sigma = Math.sqrt(logAmts.map(v=>(v-mu)**2).reduce((s,v)=>s+v,0) / logAmts.length);
+    rev_mu = +mu.toFixed(3);
+    rev_sigma = +clamp(sigma, 0.2, 2.5).toFixed(3);
+    amounts.sort((a,b)=>a-b);
+    dealStats = {
+      median: amounts[Math.floor(amounts.length/2)],
+      p10: amounts[Math.floor(amounts.length*0.10)],
+      p90: amounts[Math.floor(amounts.length*0.90)],
+      mean: amounts.reduce((s,v)=>s+v,0)/amounts.length,
+      n: amounts.length,
+    };
+  } else {
+    warnings.push({ level:'warn', msg: 'No amount column or fewer than 5 valid values — revenue distribution not fitted.' });
+  }
+
+  // ---- Lead conversion ----
+  let base_prob_lead_conversion = null;
+  if (leads && leads.length > 0) {
+    const convCol = Object.keys(leads[0]).find(k => ['isconverted','is_converted','converted'].includes(k.toLowerCase()));
+    if (convCol) {
+      const nConv = leads.filter(r => String(r[convCol]).toLowerCase() === 'true' || r[convCol] === '1').length;
+      base_prob_lead_conversion = +clamp(nConv / leads.length, 0.01, 0.60).toFixed(4);
+    }
+  }
+
+  if (!stageCol && !amounts.length) {
+    warnings.push({ level:'error', msg: 'Could not fit any parameters. Make sure your CSV has at least a stage column and/or an amount column.' });
+  }
+
+  const fitted = {
+    label: 'csv_fitted',
+    n_reps: n_reps || 8,
+    n_seed_accounts,
+    days: 90,
+    n_runs: 100,
+    base_prob_close,
+    base_prob_lost,
+    base_prob_prospecting:    rateToDaily('Prospecting', prospAdv),
+    base_prob_qualification:  rateToDaily('Qualification', qualAdv),
+    base_prob_proposal:       rateToDaily('Proposal', propAdv),
+    base_prob_negotiation:    rateToDaily('Negotiation', negAdv),
+    base_prob_lead_conversion,
+    inactivity_alpha,
+    stagnation_alpha,
+    apply_decay: true,
+    notes: `Fitted from CSV export. ${oppsWithStage.length} opportunities, ${nClosed} closed (${nWon} won, ${nLost} lost).`,
+  };
+
+  const observed = {
+    n_opps: oppsWithStage.length, n_closed: nClosed, n_won: nWon, n_lost: nLost,
+    win_rate, lost_rate, avg_cycle,
+    dealStats, stageCounts,
+    adv_rates: { Prospecting: prospAdv, Qualification: qualAdv, Proposal: propAdv, Negotiation: negAdv },
+    rev_mu, rev_sigma,
+  };
+
+  return { fitted, observed, warnings };
+}
+
+function fitFromCsv() {
+  document.getElementById('csv-fit-status').textContent = 'Fitting…';
+  setTimeout(() => {
+    try {
+      const result = calibrateFromCsv();
+      csvFitted = result;
+      renderCsvFitResults(result);
+      document.getElementById('csv-fit-status').textContent = 'Done';
+    } catch(e) {
+      document.getElementById('csv-fit-status').textContent = 'Error: ' + e.message;
+      console.error(e);
+    }
+  }, 100);
+}
+
+function renderCsvFitResults({ fitted, observed, warnings }) {
+  document.getElementById('csv-fit-output').style.display = 'block';
+
+  // Data summary cards
+  const cards = [
+    { label:'Opportunities', value: observed.n_opps.toLocaleString(), sub:'total rows' },
+    { label:'Closed won',    value: observed.n_won, sub: observed.win_rate!=null ? 'win rate '+fmtPct(observed.win_rate) : '' },
+    { label:'Avg cycle',     value: observed.avg_cycle!=null ? Math.round(observed.avg_cycle)+'d' : 'n/a', sub:'median days open' },
+    { label:'Median deal',   value: observed.dealStats ? '$'+fmtK(observed.dealStats.median) : 'n/a', sub: observed.dealStats ? `n=${observed.dealStats.n}` : 'no amount col' },
+  ];
+  document.getElementById('csv-data-summary').innerHTML = cards.map(c =>
+    `<div class="metric"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`
+  ).join('');
+
+  // Fitted parameters
+  const fields = [
+    { key:'base_prob_close',         label:'Close rate',           def:0.15 },
+    { key:'base_prob_lost',          label:'Lost rate (daily)',     def:0.035 },
+    { key:'base_prob_prospecting',   label:'Prospecting adv.',     def:0.08 },
+    { key:'base_prob_qualification', label:'Qualification adv.',   def:0.04 },
+    { key:'base_prob_proposal',      label:'Proposal adv.',        def:0.02 },
+    { key:'base_prob_negotiation',   label:'Negotiation adv.',     def:0.01 },
+    { key:'base_prob_lead_conversion',label:'Lead conversion',     def:0.25 },
+    { key:'inactivity_alpha',        label:'Inactivity alpha',     def:0.010 },
+    { key:'stagnation_alpha',        label:'Stagnation alpha',     def:0.008 },
+  ];
+  document.getElementById('csv-fit-fields').innerHTML = fields.map(f => {
+    const v = fitted[f.key];
+    const isNull = v == null;
+    const pct_diff = (!isNull && f.def) ? (v - f.def) / Math.abs(f.def) : 0;
+    const cls = isNull ? 'diff-same' : pct_diff > 0.05 ? 'diff-up' : pct_diff < -0.05 ? 'diff-dn' : 'diff-same';
+    const disp = isNull ? '<span style="color:var(--text3)">not fitted</span>' :
+      (f.key.includes('alpha') ? v.toFixed(5) : fmtPct(v));
+    return `<div class="fit-row">
+      <span class="fit-key">${f.label}</span>
+      <div class="fit-vals">
+        <span class="fit-orig">θ default: ${fmtPct(f.def)}</span>
+        <span class="fit-fitted ${cls}">${disp}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Distributions
+  const obs = observed;
+  const distRows = [
+    ['Total opps', obs.n_opps],
+    ['Win rate', obs.win_rate!=null ? fmtPct(obs.win_rate) : 'n/a'],
+    ['Lost rate', obs.lost_rate!=null ? fmtPct(obs.lost_rate) : 'n/a'],
+    ['Avg cycle (median)', obs.avg_cycle!=null ? Math.round(obs.avg_cycle)+' days' : 'n/a'],
+  ];
+  if (obs.dealStats) {
+    distRows.push(
+      ['Deal size p10', '$'+fmtK(obs.dealStats.p10)],
+      ['Deal size median', '$'+fmtK(obs.dealStats.median)],
+      ['Deal size p90', '$'+fmtK(obs.dealStats.p90)],
+      ['Rev log-mean (ln$)', obs.rev_mu?.toFixed(2) ?? 'n/a'],
+      ['Rev log-sigma', obs.rev_sigma?.toFixed(2) ?? 'n/a'],
+    );
+  }
+  if (obs.adv_rates) {
+    for (const [s,r] of Object.entries(obs.adv_rates)) {
+      distRows.push([s+' adv. rate', r!=null ? fmtPct(r) : 'n/a']);
+    }
+  }
+  document.getElementById('csv-fit-distributions').innerHTML = distRows.map(([k,v]) =>
+    `<div class="fit-row"><span class="fit-key">${k}</span><span class="fit-fitted">${v}</span></div>`
+  ).join('');
+
+  // Stage bar chart
+  drawCsvStageChart(obs.stageCounts);
+
+  // Warnings
+  const warnHtml = warnings.length === 0
+    ? '<span style="font-size:13px;color:var(--green-dark)">✓ No issues detected</span>'
+    : warnings.map(w => {
+        const icon = w.level === 'error' ? '✗' : '⚠';
+        const color = w.level === 'error' ? 'var(--red)' : 'var(--amber)';
+        return `<div class="warn-row"><span class="warn-icon" style="color:${color}">${icon}</span><span style="font-size:13px">${w.msg}</span></div>`;
+      }).join('');
+  document.getElementById('csv-warnings').innerHTML = warnHtml;
+
+  // JSON
+  const cleanConfig = {...fitted};
+  if (observed.rev_mu != null) { cleanConfig.rev_mu = observed.rev_mu; cleanConfig.rev_sigma = observed.rev_sigma; }
+  document.getElementById('csv-fit-json').textContent = JSON.stringify(cleanConfig, null, 2);
+
+  // Python snippet
+  document.getElementById('csv-fit-python').textContent =
+`from sf_majick.sim.org_config import OrgConfig
+from sf_majick.sim.org_calibrator import ExperimentRunner, build_state_from_config
+from sf_majick.sim.simulate import run_simulation
+from sf_majick.sim.micro_policy import simulate_rep_thinking
+
+cfg = OrgConfig.load("csv_fitted_config.json")
+print(cfg.describe())
+
+runner = ExperimentRunner(
+    base_config   = cfg,
+    state_factory = build_state_from_config,
+    sim_fn        = run_simulation,
+    micro_policy  = simulate_rep_thinking,
+    n_iterations  = 200,
+)
+
+results = runner.compare({
+    "baseline":      {},
+    "hire_2_closers":{"n_reps": cfg.n_reps + 2},
+    "coaching":      {"base_prob_close": (cfg.base_prob_close or 0.15) + 0.05},
+    "pipeline_hygiene": {
+        "inactivity_alpha": (cfg.inactivity_alpha or 0.010) * 0.6,
+        "stagnation_alpha": (cfg.stagnation_alpha or 0.008) * 0.6,
+    },
+})
+
+print(results.groupby("label")[["won_rate","revenue_per_run","avg_rep_earnings"]].mean())`;
+}
+
+function drawCsvStageChart(stageCounts) {
+  const canvas = document.getElementById('csv-stage-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 400;
+  const H = 160;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const stages = ['Prospecting','Qualification','Proposal','Negotiation','Closed Won','Closed Lost'];
+  const colors = ['#378ADD','#BA7517','#1D9E75','#7F77DD','#0F6E56','#E24B4A'];
+  const vals = stages.map(s => stageCounts[s] || 0);
+  const maxVal = Math.max(...vals, 1);
+  const barW = (W - 20) / stages.length - 6;
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const textColor = isDark ? 'rgba(200,190,170,0.7)' : 'rgba(60,60,50,0.6)';
+
+  vals.forEach((v, i) => {
+    const x = 10 + i * ((W - 20) / stages.length);
+    const barH = (v / maxVal) * (H - 50);
+    ctx.fillStyle = colors[i];
+    ctx.beginPath(); ctx.roundRect(x, H - 30 - barH, barW, barH, 3); ctx.fill();
+    ctx.fillStyle = textColor;
+    ctx.font = `10px -apple-system, sans-serif`; ctx.textAlign = 'center';
+    ctx.fillText(v, x + barW/2, H - 32 - barH - 2);
+    ctx.fillText(stages[i].replace(' ','\n').split(' ')[0], x + barW/2, H - 14);
+  });
+}
+
+function copyCsvJson() {
+  navigator.clipboard.writeText(document.getElementById('csv-fit-json').textContent).then(() => {
+    const btn = event.target; btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy JSON', 1500);
+  });
+}
+
+function downloadCsvJson() {
+  const txt = document.getElementById('csv-fit-json').textContent;
+  const blob = new Blob([txt], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'csv_fitted_config.json'; a.click();
+}
+
+function loadCsvConfigIntoSetup() {
+  if (!csvFitted) return;
+  const { fitted, observed } = csvFitted;
+
+  // Wire fitted values into setup sliders where they exist
+  if (fitted.n_reps)           setSlider('nreps', fitted.n_reps);
+  if (fitted.n_seed_accounts)  setSlider('accts', fitted.n_seed_accounts);
+  if (fitted.base_prob_close != null) setSlider('close', fitted.base_prob_close, 'pct');
+  if (fitted.base_prob_lost   != null) setSlider('lost',  fitted.base_prob_lost, 'pct2');
+  if (fitted.inactivity_alpha != null) setSlider('inactivity', fitted.inactivity_alpha, 'dec3');
+  if (fitted.stagnation_alpha != null) setSlider('stagnation', fitted.stagnation_alpha, 'dec3');
+  if (fitted.base_prob_prospecting   != null) setSlider('p-prosp', fitted.base_prob_prospecting,   'pct');
+  if (fitted.base_prob_qualification != null) setSlider('p-qual',  fitted.base_prob_qualification,  'pct');
+  if (fitted.base_prob_proposal      != null) setSlider('p-prop',  fitted.base_prob_proposal,       'pct');
+  if (fitted.base_prob_negotiation   != null) setSlider('p-neg',   fitted.base_prob_negotiation,    'pct');
+  if (fitted.base_prob_lead_conversion != null) setSlider('p-lead',fitted.base_prob_lead_conversion,'pct');
+  if (observed.rev_mu  != null) setSlider('rev-mu',  observed.rev_mu,  'dec1');
+  if (observed.rev_sigma != null) setSlider('rev-sig', observed.rev_sigma, 'dec1');
+  updateRevPreview();
+
+  showTab('setup');
+  // Brief flash to confirm
+  const btn = event.target;
+  btn.textContent = '✓ Loaded';
+  setTimeout(() => btn.textContent = 'Load into Setup tab →', 2000);
+}
+
+// Init
+updateRevPreview();
+</script>
+</body>
+</html>

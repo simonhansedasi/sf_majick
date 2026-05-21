@@ -426,6 +426,48 @@ function drawCsvStageChart(stageCounts) {
   });
 }
 
+// ── Save to Pi ───────────────────────────────────────────────────
+async function saveToPi() {
+  const nameEl  = document.getElementById('csv-save-name');
+  const btn     = document.getElementById('csv-save-btn');
+  const statusEl = document.getElementById('csv-save-status');
+
+  const rawName = (nameEl?.value || '').trim();
+  const name    = rawName || 'fitted_' + new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  let config;
+  try {
+    config = JSON.parse(document.getElementById('csv-fit-json').textContent);
+  } catch {
+    statusEl.textContent = 'No fitted config — run the fitter first.';
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Saving…';
+
+  try {
+    const resp = await fetch('/api/save_config', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name, config }),
+    });
+    const data = await resp.json();
+    if (data.error) {
+      statusEl.textContent = 'Error: ' + data.error;
+    } else {
+      statusEl.textContent = '✓ Saved as ' + data.saved;
+      btn.textContent = '✓ Saved';
+      setTimeout(() => { btn.textContent = 'Save to Pi'; btn.disabled = false; }, 3000);
+      return;
+    }
+  } catch (e) {
+    statusEl.textContent = 'Failed: ' + e.message;
+  }
+
+  btn.disabled = false;
+}
+
 // ── Load into Setup ──────────────────────────────────────────────
 function loadCsvIntoSetup() {
   if (!csvFitted) return;

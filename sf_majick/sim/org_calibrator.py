@@ -647,6 +647,7 @@ def build_state_from_config(cfg: OrgConfig) -> dict:
                         id=f"rep_{len(reps)}",
                         archetype_name=slot.archetype_name,
                         comp_rate=slot.comp_rate,
+                        start_day=slot.start_day,
                     )
                     reps.append(rep)
         else:
@@ -668,12 +669,15 @@ def build_state_from_config(cfg: OrgConfig) -> dict:
         personality_names  = list(cfg.account_personality_weights.keys())
         personality_weights = list(cfg.account_personality_weights.values())
 
+        acc_mean_log  = cfg.account_revenue_mean_log  if cfg.account_revenue_mean_log  is not None else 15
+        acc_sigma_log = cfg.account_revenue_sigma_log if cfg.account_revenue_sigma_log is not None else 1
+
         accounts = []
         for i in range(cfg.n_seed_accounts):
             assigned_rep = reps[i % len(reps)]
 
             if cfg.random_account_revenues or i >= len(cfg.account_revenues):
-                revenue = float(np.random.lognormal(mean=15, sigma=1))
+                revenue = float(np.random.lognormal(mean=acc_mean_log, sigma=acc_sigma_log))
             else:
                 revenue = cfg.account_revenues[i]
 
@@ -697,6 +701,13 @@ def build_state_from_config(cfg: OrgConfig) -> dict:
         # Seed leads
         # ------------------------------------------------------------
         leads = generate_random_leads(n=cfg.n_seed_leads)
+
+        # Override lead revenues if config specifies non-default distribution
+        if cfg.lead_revenue_base is not None or cfg.lead_revenue_sigma is not None:
+            lead_base  = cfg.lead_revenue_base  if cfg.lead_revenue_base  is not None else 50_000
+            lead_sigma = cfg.lead_revenue_sigma if cfg.lead_revenue_sigma is not None else 0.5
+            for lead in leads:
+                lead.revenue = max(10_000, lead_base * np.random.lognormal(mean=0, sigma=lead_sigma))
 
         return {
             "reps":          reps,

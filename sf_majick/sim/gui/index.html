@@ -203,6 +203,11 @@
           <button class="btn" onclick="downloadEl('csv-fit-json','csv_fitted_config.json')">Download</button>
           <button class="btn btn-primary" onclick="loadCsvIntoSetup()">Load into Setup →</button>
         </div>
+        <div class="save-pi-row">
+          <input type="text" id="csv-save-name" class="save-pi-input" placeholder="Config name (e.g. acme_q3_2026)">
+          <button class="btn" id="csv-save-btn" onclick="saveToPi()">Save to Pi</button>
+          <span id="csv-save-status" class="status-text"></span>
+        </div>
       </div>
       <div class="panel"><div class="panel-title">Python snippet</div><pre id="csv-fit-python"></pre></div>
     </div>
